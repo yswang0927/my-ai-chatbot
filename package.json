@@ -1,0 +1,26 @@
+{
+  "name": "my-ai-chatbot",
+  "private": true,
+  "version": "0.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/ai-chatbot.js"
+    }
+  },
+  "main": "./src/ai-chatbot.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.7.1",
+    "highlight.js": "^11.11.1",
+    "marked": "^15.0.12",
+    "marked-highlight": "^2.2.1"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
