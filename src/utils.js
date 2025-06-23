@@ -28,7 +28,7 @@ export function throttle(func, delay) {
  * 深度合并
  */
 export function deepMerge(target, source) {
-  const isObject = (obj) => !!obj && (obj.constructor === Object) && !(obj instanceof HTMLElement);
+  const isObject = (obj) => !!obj && (obj.constructor === Object);
 
   if (!isObject(target) || !isObject(source)) {
     return source;
