@@ -16,6 +16,7 @@ import bash from 'highlight.js/lib/languages/bash';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { throttle, deepMerge } from './utils';
 
 //import 'highlight.js/styles/github.css';
 //import './style.css';
@@ -44,46 +45,6 @@ hljs.registerLanguage('shell', shell);
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('plaintext', plaintext);
 
-
-function deepMerge(target, source) {
-  for (const key in source) {
-    if (source.hasOwnProperty(key)) {
-      if (source[key] !== null && (typeof source[key] === 'object') && !(source[key] instanceof HTMLElement)
-           && target[key] !== null && (typeof target[key] === 'object') && !(target[key] instanceof HTMLElement)) {
-        target[key] = deepMerge(target[key], source[key]);
-      } else {
-        target[key] = source[key];
-      }
-    }
-  }
-  return target;
-}
-
-/**
- * 节流函数
- * @param {Function} func 需要节流的函数
- * @param {number} delay 延迟时间，单位毫秒
- * @returns {Function} 返回一个新的节流函数
- */
-function throttle(func, delay) {
-  let timer = null;
-  let lastTime = 0;
-
-  return function(...args) {
-    const now = Date.now();
-    const remaining = delay - (now - lastTime);
-    clearTimeout(timer);
-    if (remaining <= 0) {
-      lastTime = now;
-      func.apply(this, args);
-    } else {
-      timer = setTimeout(() => {
-        lastTime = Date.now();
-        func.apply(this, args);
-      }, remaining);
-    }
-  };
-}
 
 export class AIChatbot {
     constructor(options) {
