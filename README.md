@@ -59,3 +59,37 @@ floatingAssistant({
   }
 });
 ```
+
+## 使用方式3:
+
+```html
+<script src="./dist/aichatbot.umd.js"></script>
+
+<script>
+const { AIChatbot, floatingAssistant } = window.aichatbot;
+
+const chatbot = new AIChatbot({
+  container: document.querySelector('#app'),
+  header: false,
+  openai: {
+    url: "",
+    apiKey: "",
+    model: ""
+  },
+  tools: [],
+  onToolsClick: (item, e) => {}
+});
+
+// 浮动ICON式
+floatingAssistant({
+  openai: {
+    url: "",
+    apiKey: "",
+    model: ""
+  },
+  tools: [],
+  onToolsClick: (item, e) => {}
+});
+</script>
+
+```
