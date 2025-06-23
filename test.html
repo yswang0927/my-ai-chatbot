@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+    .xx {
+        color: red;
+    }
+    :root {
+        --t-color: red;
+    }
+    </style>
+</head>
+<body>
+    <div id="host"></div>
+    <span>I'm not in the shadow DOM</span>
+
+    <script>
+    const host = document.querySelector("#host");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+    <style>
+    span {color: var(--t-color, 'red')}
+    </style>
+    <span>我是影子内容</span>
+    `
+    </script>
+</body>
+</html>

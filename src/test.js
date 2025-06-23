@@ -1,12 +1,12 @@
 
 import { AIChatbot, floatingAssistant } from './ai-chatbot'
 
-let apiKey = '...';
+let apiKey = 'sk-nirlhxqutudszbzdayffbgzlawabxbmhqjrumngwnzjsdsxg';
 let apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 let modelName = 'deepseek-ai/DeepSeek-V3'; //deepseek-ai/DeepSeek-V3, deepseek-ai/DeepSeek-R1
 
-apiUrl = 'http://localhost:11434/v1/chat/completions';
-modelName = 'deepseek-r1:7b';
+//apiUrl = 'http://localhost:11434/v1/chat/completions';
+//modelName = 'deepseek-r1:7b';
 
 
 const chatbot = new AIChatbot({
