@@ -93,3 +93,6 @@ floatingAssistant({
 </script>
 
 ```
+
+![screen_20250623201652](https://github.com/user-attachments/assets/dc678548-34e6-4788-9b96-d7d20d07d70e)
+
