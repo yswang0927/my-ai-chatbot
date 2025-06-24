@@ -63,6 +63,10 @@ export class AIChatbot {
                 botTitle: 'AI助手',
                 closable: true,
                 onClose: function() {}
+            },
+            theme: 'light',
+            style: {
+                '--primary-brand-color': '#5350c4'
             }
         }, options || {});
 
@@ -98,7 +102,11 @@ export class AIChatbot {
 
         shadowContainer.innerHTML = `
         <style>
-        :host {height:100%;display:block;}
+        :host {
+            height:100%;
+            display:block;
+            --primary-brand-color: ${this.options.style['--primary-brand-color']};
+        }
         ${highlightStyle}
         ${chatbotStyle}
         </style>
@@ -524,7 +532,7 @@ class AIChatbotFloatingAssistant extends HTMLElement {
             height: 40px;
             border-radius: 50%;
             appearance: none;
-            background-color: #5350c4;
+            background-color: var(--primary-brand-color);
             color: #fff;
             border: 0 none;
             cursor: pointer;
@@ -540,6 +548,9 @@ class AIChatbotFloatingAssistant extends HTMLElement {
         }
         .ai-chatbot-floating-handler:hover {
             box-shadow: 0 8px 16px rgba(17, 20, 24, .2);
+        }
+        .ai-chatbot-floating-handler.is-dragging {
+            cursor: grabbing;
         }
         </style>
         <div style="position:relative;">
@@ -567,60 +578,76 @@ export const floatingAssistant = (options) => {
         return;
     }
 
-    const opts = Object.assign({
+    const opts = deepMerge({
         icon: `${botIcon}`,
+        theme: 'light',
         style: {
             right: "30px",
-            bottom: "30px"
+            bottom: "30px",
+            zIndex: 1000,
+            '--primary-brand-color': '#5350c4'
         }
     }, options || {});
 
+    const baseZindex = parseInt(opts.style?.zIndex || 1000);
+
     const handler = document.createElement('ai-chatbot-floating-assistant');
-    handler.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:1000;transform:translate(0px, 0px);cursor: pointer;';
+    handler.style.cssText = 'position:fixed;right:10px;bottom:10px;transform:translate(0, 0);cursor:pointer;';
     handler.config = opts;
     handler.id = 'ai-chatbot-floating-assistant';
     handler.className = 'ai-chatbot-floating-assistant';
     document.body.appendChild(handler);
-    Object.assign(handler.style, opts.style || {});
-
-    let chatbot = null;
-    const handleClick = () => {
-        let chatbotContainer = document.querySelector('#ai-chatbot-floating-chatbot');
-        if (!chatbotContainer) {
-            chatbotContainer = document.createElement('div');
-            chatbotContainer.id = 'ai-chatbot-floating-chatbot';
-            chatbotContainer.style.cssText = 'display:none;position:fixed;z-index:1002;left:0;top:0;width:400px;height:80vh;border:1px solid #d9d9d9;border-radius:6px;background-color:#f6f8f9;';
-            document.body.appendChild(chatbotContainer);
-
-            chatbot = new AIChatbot(Object.assign({}, opts, {
-                container: chatbotContainer,
-                header: {
-                    onClose: () => {
-                        chatbotContainer.style.display = 'none';
-                    }
-                }
-            }));
+    if (opts.style) {
+        for (let key in opts.style) {
+            let val = opts.style[key];
+            if (val === null || val === undefined) {
+                continue;
+            }
+            handler.style.setProperty(key, val);
         }
+    }
 
-        let rect = handler.getBoundingClientRect();
-        let disTop = rect.top;
-        let disBtm = window.innerHeight - rect.top - rect.height;
-        chatbotContainer.style.height = (Math.max(disTop, disBtm) - 30) + 'px';
+    const chatbotFloatingContainer = document.createElement('div');
+    chatbotFloatingContainer.className = 'ai-chatbot-floating-container';
+    chatbotFloatingContainer.style.cssText = `display:none;position:fixed;z-index:${baseZindex+2};left:0;top:0;width:400px;height:80vh;border:1px solid #d9d9d9;border-radius:6px;background-color:#f6f8f9;`;
+    document.body.appendChild(chatbotFloatingContainer);
+    const chatbot = new AIChatbot(Object.assign({}, opts, {
+        container: chatbotFloatingContainer,
+        header: {
+            onClose: () => {
+                chatbotFloatingContainer.style.display = 'none';
+            }
+        }
+    }));
 
-        if (chatbotContainer.style.display === 'block') {
-            chatbotContainer.style.display = 'none';
+    // 用于覆盖页面上可能存在的iframe等会捕获鼠标的元素,避免拖动卡顿
+    const floatingOverlay = document.createElement('div');
+    floatingOverlay.className = 'ai-chatbot-floating-overlay';
+    floatingOverlay.style.cssText = `display:none;position:fixed;left:0;top:0;right:0;bottom:0;z-index:${baseZindex-1};use-select:none;background-color:rgba(0,0,0,0);`;
+    document.body.appendChild(floatingOverlay);
+
+    const handleClick = () => {
+        const rect = handler.getBoundingClientRect();
+        const disTop = rect.top;
+        const disBtm = window.innerHeight - rect.top - rect.height;
+        chatbotFloatingContainer.style.height = (Math.max(disTop, disBtm) - 30) + 'px';
+
+        if (chatbotFloatingContainer.style.display === 'block') {
+            chatbotFloatingContainer.style.display = 'none';
             return;
         }
 
         // 使用 floating-ui/dom 来自动计算位置
-        chatbotContainer.style.display = 'block';
-        computePosition(handler, chatbotContainer, {
+        chatbotFloatingContainer.style.display = 'block';
+        chatbotFloatingContainer.style.visibility = 'hidden';
+        computePosition(handler, chatbotFloatingContainer, {
             placement: 'top-end',
             middleware: [flip(), shift(), offset(5)]
         }).then(({ x, y }) => {
-            Object.assign(chatbotContainer.style, {
+            Object.assign(chatbotFloatingContainer.style, {
                 left: `${x}px`,
-                top: `${y}px`
+                top: `${y}px`,
+                visibility: 'visible'
             });
         });
     };
@@ -635,13 +662,11 @@ export const floatingAssistant = (options) => {
     const getEventCoords = (e) => e.touches ? e.touches[0] : e;
 
     const onDragStart = (e) => {
-        //isDragging = true;
-        //handler.classList.add('is-dragging');
-
         const coords = getEventCoords(e);
         initialX = coords.clientX;
         initialY = coords.clientY;
-
+        floatingOverlay.style.display = 'block';
+        
         document.addEventListener('mousemove', onDragging);
         document.addEventListener('touchmove', onDragging, { passive: false });
         document.addEventListener('mouseup', onDragEnd);
@@ -660,12 +685,15 @@ export const floatingAssistant = (options) => {
         if (!isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
             isDragging = true;
             handler.classList.add('is-dragging');
+            chatbotFloatingContainer.style.display = 'none';
         }
 
         isDragging && (handler.style.transform = `translate(${newX}px, ${newY}px) scale(1.2)`);
     };
 
     const onDragEnd = (e) => {
+        floatingOverlay.style.display = 'none';
+
         if (!isDragging) {
             handleClick();
         }
