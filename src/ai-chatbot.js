@@ -1,25 +1,19 @@
-import { Marked } from 'marked';
-import { markedHighlight } from "marked-highlight";
-//import hljs from 'highlight.js';
-import hljs from 'highlight.js/lib/core';
-import javascript from 'highlight.js/lib/languages/javascript';
-import css from 'highlight.js/lib/languages/css';
-import java from 'highlight.js/lib/languages/java';
-import python from 'highlight.js/lib/languages/python';
-import go from 'highlight.js/lib/languages/go';
-import groovy from 'highlight.js/lib/languages/groovy';
-import xml from 'highlight.js/lib/languages/xml';
-import sql from 'highlight.js/lib/languages/sql';
-import json from 'highlight.js/lib/languages/json';
-import shell from 'highlight.js/lib/languages/shell';
-import bash from 'highlight.js/lib/languages/bash';
-import plaintext from 'highlight.js/lib/languages/plaintext';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import remarkRehype from 'remark-rehype';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
+//import rehypeFormat from 'rehype-format';
+import rehypeMermaid from 'rehype-mermaid';
+import rehypeStringify from 'rehype-stringify';
+import {unified} from 'unified';
 
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { throttle, deepMerge } from './utils';
 
-//import 'highlight.js/styles/github.css';
 //import './style.css';
+import 'katex/dist/katex.min.css';
 
 import highlightStyle from 'highlight.js/styles/github.css?raw';
 import chatbotStyle from './style.css?raw';
@@ -30,20 +24,6 @@ import abortIcon from './assets/abort.svg?raw';
 import arrowRight from './assets/arrow-right.svg?raw';
 import plusIcon from './assets/plus.svg?raw';
 import closeIcon from './assets/close.svg?raw';
-
-
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('css', css);
-hljs.registerLanguage('java', java);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('go', go);
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('groovy', groovy);
-hljs.registerLanguage('xml', xml);
-hljs.registerLanguage('sql', sql);
-hljs.registerLanguage('shell', shell);
-hljs.registerLanguage('bash', bash);
-hljs.registerLanguage('plaintext', plaintext);
 
 
 export class AIChatbot {
@@ -192,14 +172,31 @@ export class AIChatbot {
     }
     
     setupMarkdown() {
-        this.marked = new Marked(markedHighlight({
-            emptyLangClass: 'hljs',
-            langPrefix: 'hljs language-',
-            highlight(code, lang, info) {
-                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-                return hljs.highlight(code, { language }).value;
-            }
-        }));
+        // 注意插件位置顺序: 
+        // -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
+        // 
+        // remarkMath 属于 remark 插件（处理 Markdown AST），
+        // 而 rehypeKatex 和 rehypeHighlight 属于 rehype 插件（处理 HTML AST）,
+        // remarkRehype 必须在 remarkMath 之后，且在 rehypeKatex 和 rehypeHighlight 之前
+        this.remarkProcessor = unified()
+            .use(remarkParse)
+            .use(remarkGfm)
+            .use(remarkMath)
+            .use(remarkRehype, {allowDangerousHtml: true}) // 从 Markdown AST 转换到 HTML AST
+            .use(rehypeKatex, {
+                output:'html', // html | mathml | htmlAndMathml
+                throwOnError: false,
+                strict: false
+            })
+            .use(rehypeMermaid, {
+                errorFallback: function(element, diagram, error, vfile) {
+                    console.error(error);
+                    return null;
+                }
+            })
+            .use(rehypeHighlight)
+            //.use(rehypeFormat)
+            .use(rehypeStringify);
     }
 
     setupTools() {
@@ -220,8 +217,13 @@ export class AIChatbot {
         });
     }
 
-    renderMessage(content) {
-        return this.marked.parse(content);
+    renderMessage(content, hostElement) {
+        if (!hostElement) {
+            return;
+        }
+        this.remarkProcessor.process(content)
+                .then(html => hostElement.innerHTML = html)
+                .catch((e) => hostElement.innerHTML = content);
     }
     
     newSession() {
@@ -279,8 +281,9 @@ export class AIChatbot {
                         </div>
                         <div class="ai-chatbot-message-thinking-content"></div>
                     </div>
-                    <div class="ai-chatbot-message-content">${this.renderMessage(content)}</div>
+                    <div class="ai-chatbot-message-content"></div>
                 </div>`;
+                this.renderMessage(content, messageDiv.querySelector('.ai-chatbot-message-content'));
             }
         }
         
@@ -368,7 +371,7 @@ export class AIChatbot {
             if (!thinkingEle) return;
             thinkingEle.classList.remove('ai-chatbot-hide');
             thinkingTipEle.innerText = end ? `已思考 ${cost}秒` : `思考中(${cost}秒)...`;
-            thinkingContentEle.innerHTML = this.renderMessage(content);
+            this.renderMessage(content, thinkingContentEle);
             if (end) {
                 thinkingEle.classList.add('collapsed');
             }
@@ -377,7 +380,7 @@ export class AIChatbot {
 
         const renderMainContent = throttle((content) => {
             if (!mainContentEle) return;
-            mainContentEle.innerHTML = this.renderMessage(content);
+            this.renderMessage(content, mainContentEle);
             this.scrollToBottom();
         }, 150);
         
