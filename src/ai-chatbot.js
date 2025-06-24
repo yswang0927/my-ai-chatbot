@@ -66,7 +66,7 @@ export class AIChatbot {
             },
             theme: 'light',
             style: {
-                '--primary-brand-color': '#5350c4'
+                '--primary-brand-color': '#007aff'
             }
         }, options || {});
 
@@ -175,7 +175,6 @@ export class AIChatbot {
             });
         }
 
-
         // 允许用户手工滚动
         const scrollArea = this.messageContainer;
         scrollArea.addEventListener('scroll', () => {
@@ -219,6 +218,10 @@ export class AIChatbot {
             });
             this.toolsContainer.appendChild(btn);
         });
+    }
+
+    renderMessage(content) {
+        return this.marked.parse(content);
     }
     
     newSession() {
@@ -276,7 +279,7 @@ export class AIChatbot {
                         </div>
                         <div class="ai-chatbot-message-thinking-content"></div>
                     </div>
-                    <div class="ai-chatbot-message-content">${this.marked.parse(content)}</div>
+                    <div class="ai-chatbot-message-content">${this.renderMessage(content)}</div>
                 </div>`;
             }
         }
@@ -365,7 +368,7 @@ export class AIChatbot {
             if (!thinkingEle) return;
             thinkingEle.classList.remove('ai-chatbot-hide');
             thinkingTipEle.innerText = end ? `已思考 ${cost}秒` : `思考中(${cost}秒)...`;
-            thinkingContentEle.innerHTML = this.marked.parse(content);
+            thinkingContentEle.innerHTML = this.renderMessage(content);
             if (end) {
                 thinkingEle.classList.add('collapsed');
             }
@@ -374,7 +377,7 @@ export class AIChatbot {
 
         const renderMainContent = throttle((content) => {
             if (!mainContentEle) return;
-            mainContentEle.innerHTML = this.marked.parse(content);
+            mainContentEle.innerHTML = this.renderMessage(content);
             this.scrollToBottom();
         }, 150);
         
@@ -609,7 +612,7 @@ export const floatingAssistant = (options) => {
 
     const chatbotFloatingContainer = document.createElement('div');
     chatbotFloatingContainer.className = 'ai-chatbot-floating-container';
-    chatbotFloatingContainer.style.cssText = `display:none;position:fixed;z-index:${baseZindex+2};left:0;top:0;width:400px;height:80vh;border:1px solid #d9d9d9;border-radius:6px;background-color:#f6f8f9;`;
+    chatbotFloatingContainer.style.cssText = `display:none;position:fixed;z-index:${baseZindex+2};left:0;top:0;width:400px;height:80vh;border-radius:6px;background-color:#fdfdfd;box-shadow: 0 0 0 1px rgba(17, 20, 24, .1),0 1px 1px rgba(17, 20, 24, .2),0 2px 6px rgba(17, 20, 24, .2);`;
     document.body.appendChild(chatbotFloatingContainer);
     const chatbot = new AIChatbot(Object.assign({}, opts, {
         container: chatbotFloatingContainer,

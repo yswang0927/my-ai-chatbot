@@ -39,7 +39,7 @@
     align-items: center;
     flex-wrap: nowrap;
     height: 36px;
-    background-color: var(--primary-brand-color, #5350c4);
+    background-color: var(--primary-brand-color, #007aff);
     color: #fff;
     border-top-left-radius: inherit;
     border-top-right-radius: inherit;
@@ -130,7 +130,7 @@
     flex-shrink: 0;
     align-self: flex-end;
     margin-bottom: 2px;
-    background: var(--primary-brand-color, #5350c4);
+    background: var(--primary-brand-color, #007aff);
     border-radius: 50%;
     box-sizing: border-box;
 }
@@ -140,7 +140,7 @@
     word-break: break-all;
     border-radius: 15px;
     line-height: 1.57;
-    padding: 12px 14px;
+    padding: 10px 12px;
     box-sizing: border-box;
 }
 .ai-chatbot-message p {
@@ -172,7 +172,7 @@
 .ai-chatbot-user-message .ai-chatbot-message {
     text-align: left;
     border-bottom-right-radius: 2px;
-    background: var(--primary-brand-color, #5350c4);
+    background: var(--primary-brand-color, #007aff);
     color: #fff;
 }
 
@@ -187,7 +187,7 @@
     align-items: center;
     line-height: 1.2em;
     font-size: 0.95em;
-    color: rgba(0,0,0,0.6);
+    color: rgba(0,0,0,0.7);
     margin-bottom: 5px;
     width: fit-content;
     user-select: none;
@@ -206,7 +206,7 @@
 }
 .ai-chatbot-message-thinking-content {
     font-size: 0.9em;
-    color: #5d5d5d;
+    color: #383E47;
     padding: 5px 5px 5px 10px;
     margin-left: 5px;
     border-left: 1px solid rgba(0,0,0,0.15);
@@ -256,7 +256,7 @@
     width: 7px;
     opacity: 0.7;
     border-radius: 50%;
-    background: var(--primary-brand-color, #5350c4);
+    background: var(--primary-brand-color, #007aff);
     box-sizing: border-box;
     animation: aiChatbotWaitingDotPulse 1.8s ease-in-out infinite;
 }
@@ -336,7 +336,7 @@
     box-shadow: 0 0 0 0 rgba(33, 93, 176, 0), 0 0 0 0 rgba(33, 93, 176, 0), inset 0 0 0 1px rgba(17, 20, 24, .2), inset 0 1px 1px rgba(17, 20, 24, .3);
 }
 .ai-chatbot-input-group:focus-within {
-    box-shadow: 0 0 0 1px var(--primary-brand-color, #5350c4), inset 0 1px 1px rgba(16, 22, 26, .2);
+    box-shadow: 0 0 0 1px var(--primary-brand-color, #007aff), inset 0 1px 1px rgba(16, 22, 26, .2);
 }
 .ai-chatbot-input-group textarea {
     flex: 1;
@@ -368,7 +368,7 @@
     height: 32px;
     padding: 0;
     border-radius: 50%;
-    color: var(--primary-brand-color, #5350c4);
+    color: var(--primary-brand-color, #007aff);
 }
 .ai-chatbot-input-actions button:hover {
     background-color: rgba(0,0,0,0.05);
