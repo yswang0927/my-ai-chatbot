@@ -6,10 +6,14 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeFormat from 'rehype-format';
 import rehypeMermaid from 'rehype-mermaid';
+import rehypeRaw from 'rehype-raw';
 import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 import balanced from 'balanced-match';
+import { visit } from 'unist-util-visit';
+import { h } from 'hastscript';
 
+import copySvg from './assets/copy.svg?raw';
 
 /**
  * 节流函数
@@ -158,6 +162,39 @@ export function convertMathFormula(input) {
   return result;
 };
 
+
+/**
+ * 添加代码块复制按钮的 Rehype 插件
+ */
+function rehypeCodeCopyButton() {
+    return (tree) => {
+        visit(tree, 'element', (node, index, parent) => {
+            // 只处理 <pre> 标签下的 <code> 标签
+            if (node.tagName === 'pre' && node.children[0]?.tagName === 'code') {
+                const codeNode = node.children[0];
+                const rawCodeText = codeNode.children.map(child => child.value).join('');
+
+                const copyButton = h('button', {
+                    className: 'ai-chatbot-code-copy-button',
+                    style: 'position: absolute; top: 5px; right: 5px;',
+                    'data-code': rawCodeText,
+                    title: '复制'
+                }, [h('span', [{type: 'raw', value: copySvg }])]);
+
+                const wrapper = h('div', { 
+                  className: 'ai-chatbot-codeblock-wrapper', 
+                  style: 'position: relative;' 
+                }, [
+                  copyButton,
+                  node // 原始的 <pre> 节点
+                ]);
+
+                parent.children.splice(index, 1, wrapper);
+            }
+        });
+    };
+}
+
 // 注意插件位置顺序: 
 // -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
 // remarkMath 属于 remark 插件（处理 Markdown AST），
@@ -178,6 +215,8 @@ export const remarkProcessor = unified()
         return null;
       }
     })
+    .use(rehypeCodeCopyButton) // 添加代码块复制按钮在rehypeHighlight之前
+    .use(rehypeRaw) // 允许处理 HTML 中的原始标签
     .use(rehypeHighlight)
     .use(rehypeFormat)
     .use(rehypeStringify);
