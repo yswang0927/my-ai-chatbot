@@ -14,6 +14,7 @@ import { visit } from 'unist-util-visit';
 import { h } from 'hastscript';
 
 import copySvg from './assets/copy.svg?raw';
+import copiedSvg from './assets/copied.svg?raw';
 
 /**
  * 节流函数
@@ -176,17 +177,20 @@ function rehypeCodeCopyButton() {
 
                 const copyButton = h('button', {
                     className: 'ai-chatbot-code-copy-button',
-                    style: 'position: absolute; top: 5px; right: 5px;',
                     'data-code': rawCodeText,
                     title: '复制'
-                }, [h('span', [{type: 'raw', value: copySvg }])]);
+                }, [
+                  h('span', {className:'ai-chatbot-copy-icon'}, [{type: 'raw', value: copySvg }]), 
+                  h('span', {className:'ai-chatbot-copied-icon'}, [{type: 'raw', value: copiedSvg }]),
+                  h('span', {className:'ai-chatbot-copied-text'}, "已复制")
+                ]);
 
                 const wrapper = h('div', { 
                   className: 'ai-chatbot-codeblock-wrapper', 
                   style: 'position: relative;' 
                 }, [
-                  copyButton,
-                  node // 原始的 <pre> 节点
+                  node, // 原始的 <pre> 节点
+                  copyButton
                 ]);
 
                 parent.children.splice(index, 1, wrapper);

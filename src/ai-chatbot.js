@@ -1,5 +1,5 @@
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
-import { throttle, deepMerge, renderMarkdown } from './utils';
+import { throttle, deepMerge, renderMarkdown, copyToClipboard } from './utils';
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
@@ -109,7 +109,6 @@ export class AIChatbot {
         this.actionClose = shadowContainer.querySelector('button.ai-chatbot-action-close');
         
         this.setupEventListeners();
-        this.setupMarkdown();
         this.setupTools();
     }
     
@@ -132,6 +131,21 @@ export class AIChatbot {
 
         this.sendButton.addEventListener('click', () => this.sendMessage(this.userInput.value.trim()));
         this.abortButton.addEventListener('click', () => this.abortChat());
+
+        // 事件委托
+        this.messageContainer.addEventListener('click', (e) => {
+            const target = e.target;
+            const copyButton = target.closest('.ai-chatbot-code-copy-button');
+            if (copyButton) {
+                const codeToCopy = copyButton.dataset.code;
+                copyToClipboard(codeToCopy, () => {
+                    copyButton.classList.add('copied');
+                    setTimeout(() => {
+                        copyButton.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+        });
 
         if (this.actionNewSession) {
             this.actionNewSession.addEventListener('click', () => this.newSession());
@@ -158,10 +172,6 @@ export class AIChatbot {
                 this.scrollToBottom();
             }
         });
-    }
-    
-    setupMarkdown() {
-        
     }
 
     setupTools() {

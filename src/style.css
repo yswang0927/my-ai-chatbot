@@ -135,6 +135,7 @@
     box-sizing: border-box;
 }
 .ai-chatbot-message {
+    min-width: 50px;
     max-width: 95%;
     word-wrap: break-word;
     word-break: break-all;
@@ -402,11 +403,21 @@
     line-height: 1.0;
 }
 
-.ai-chatbot-code-copy-button {
-    width: 24px;
+.ai-chatbot button.ai-chatbot-code-copy-button {
+    position: absolute; 
+    top: 5px; 
+    right: 5px;
+    min-width: 24px;
     height: 24px;
     padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     color: rgba(0,0,0,0.5);
+}
+.ai-chatbot-code-copy-button:hover {
+    background-color: rgba(0,0,0,0.05);
 }
 .ai-chatbot-code-copy-button svg {
     width: 16px;
@@ -418,6 +429,25 @@
     line-height: 1.0;
     font-size: 0;
 }
-.ai-chatbot-code-copy-button:hover {
-    background-color: rgba(0,0,0,0.05);
+.ai-chatbot-code-copy-button .ai-chatbot-copy-icon,
+.ai-chatbot-code-copy-button .ai-chatbot-copied-icon,
+.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.ai-chatbot-code-copy-button .ai-chatbot-copied-icon {
+    display: none;
+    color: #32A467;
+}
+.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
+    display: none;
+    font-size: 12px;
+}
+.ai-chatbot-code-copy-button.copied .ai-chatbot-copy-icon {
+    display: none;
+}
+.ai-chatbot-code-copy-button.copied .ai-chatbot-copied-icon,
+.ai-chatbot-code-copy-button.copied .ai-chatbot-copied-text {
+    display: inline-flex;
 }
