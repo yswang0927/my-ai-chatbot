@@ -151,23 +151,47 @@
 .ai-chatbot-message-content > p:last-child {
     margin-bottom: 0;
 }
+.ai-chatbot-message-content table {
+    border-collapse: collapse;
+    border: 1px solid rgba(17,20,24,.15);
+}
+.ai-chatbot-message-content table th {
+    font-weight: bold;
+    border: 1px solid rgba(17,20,24,.15);
+    background-color: #f2f2f2;
+    text-align: center;
+    padding: 4px 6px;
+}
+.ai-chatbot-message-content table td {
+    border: 1px solid rgba(17,20,24,.15);
+    background-color: #fff;
+    padding: 4px 6px;
+}
 .ai-chatbot-message pre {
     padding: 0;
     margin: 0;
     margin-bottom: 12px;
+    background-color: #fff;
     border-radius: 5px;
+}
+.ai-chatbot-message-content code {
+    font-size: 0.9em;
+    background-color: #faebd7;
+    border-radius: 5px;
+    padding: 3px 5px;
 }
 .ai-chatbot-message pre code {
     font-family: Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
     border-radius: inherit;
+    background-color: transparent;
 }
 .ai-chatbot-assistant-message .ai-chatbot-message {
     text-align: left;
     background: #f9f9f9;
     color: rgb(0, 0, 0);
     border-bottom-left-radius: 2px;
-    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 1px 1px rgba(17, 20, 24, .2);
 }
 .ai-chatbot-user-message .ai-chatbot-message {
     text-align: left;

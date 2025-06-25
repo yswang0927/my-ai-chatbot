@@ -1,16 +1,5 @@
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import remarkRehype from 'remark-rehype';
-import rehypeKatex from 'rehype-katex';
-import rehypeHighlight from 'rehype-highlight';
-//import rehypeFormat from 'rehype-format';
-import rehypeMermaid from 'rehype-mermaid';
-import rehypeStringify from 'rehype-stringify';
-import {unified} from 'unified';
-
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
-import { throttle, deepMerge } from './utils';
+import { throttle, deepMerge, renderMarkdown } from './utils';
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
@@ -172,31 +161,7 @@ export class AIChatbot {
     }
     
     setupMarkdown() {
-        // 注意插件位置顺序: 
-        // -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
-        // 
-        // remarkMath 属于 remark 插件（处理 Markdown AST），
-        // 而 rehypeKatex 和 rehypeHighlight 属于 rehype 插件（处理 HTML AST）,
-        // remarkRehype 必须在 remarkMath 之后，且在 rehypeKatex 和 rehypeHighlight 之前
-        this.remarkProcessor = unified()
-            .use(remarkParse)
-            .use(remarkGfm)
-            .use(remarkMath)
-            .use(remarkRehype, {allowDangerousHtml: true}) // 从 Markdown AST 转换到 HTML AST
-            .use(rehypeKatex, {
-                output:'html', // html | mathml | htmlAndMathml
-                throwOnError: false,
-                strict: false
-            })
-            .use(rehypeMermaid, {
-                errorFallback: function(element, diagram, error, vfile) {
-                    console.error(error);
-                    return null;
-                }
-            })
-            .use(rehypeHighlight)
-            //.use(rehypeFormat)
-            .use(rehypeStringify);
+        
     }
 
     setupTools() {
@@ -218,12 +183,7 @@ export class AIChatbot {
     }
 
     renderMessage(content, hostElement) {
-        if (!hostElement) {
-            return;
-        }
-        this.remarkProcessor.process(content)
-                .then(html => hostElement.innerHTML = html)
-                .catch((e) => hostElement.innerHTML = content);
+        renderMarkdown(content, hostElement);
     }
     
     newSession() {
@@ -609,9 +569,14 @@ export const floatingAssistant = (options) => {
             if (val === null || val === undefined) {
                 continue;
             }
-            handler.style.setProperty(key, val);
+            if (key.startsWith('--')) {
+                handler.style.setProperty(key, val);
+            } else {
+                handler.style[key] = val;
+            }
         }
     }
+    handler.style.zIndex = baseZindex;
 
     const chatbotFloatingContainer = document.createElement('div');
     chatbotFloatingContainer.className = 'ai-chatbot-floating-container';
@@ -664,6 +629,7 @@ export const floatingAssistant = (options) => {
     let currentY = 0;
     let initialX = 0;
     let initialY = 0;
+    let viewportRange = [];
 
     const getEventCoords = (e) => e.touches ? e.touches[0] : e;
 
@@ -672,6 +638,15 @@ export const floatingAssistant = (options) => {
         initialX = coords.clientX;
         initialY = coords.clientY;
         floatingOverlay.style.display = 'block';
+
+        // 计算限制窗口范围
+        const rect = handler.getBoundingClientRect();
+        viewportRange = [
+            -rect.left + currentX, 
+            window.innerWidth - rect.right + currentX, 
+            -rect.top + currentY, 
+            window.innerHeight - rect.bottom + currentY
+        ];
         
         document.addEventListener('mousemove', onDragging);
         document.addEventListener('touchmove', onDragging, { passive: false });
@@ -694,6 +669,18 @@ export const floatingAssistant = (options) => {
             chatbotFloatingContainer.style.display = 'none';
         }
 
+        // 限制拖动范围在屏幕内
+        if (newX < viewportRange[0]) {
+            newX = viewportRange[0];
+        } else if (newX > viewportRange[1]) {
+            newX = viewportRange[1];
+        }
+        if (newY < viewportRange[2]) {
+            newY = viewportRange[2];
+        } else if (newY > viewportRange[3]) {
+            newY = viewportRange[3];
+        }
+
         isDragging && (handler.style.transform = `translate(${newX}px, ${newY}px) scale(1.2)`);
     };
 
@@ -712,6 +699,18 @@ export const floatingAssistant = (options) => {
             const deltaY = coords.clientY - initialY;
             currentX += deltaX;
             currentY += deltaY;
+
+            // 限制拖动范围在屏幕内
+            if (currentX < viewportRange[0]) {
+                currentX = viewportRange[0];
+            } else if (currentX > viewportRange[1]) {
+                currentX = viewportRange[1];
+            }
+            if (currentY < viewportRange[2]) {
+                currentY = viewportRange[2];
+            } else if (currentY > viewportRange[3]) {
+                currentY = viewportRange[3];
+            }
 
             handler.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.0)`;
         }

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.1",
+    "balanced-match": "^3.0.1",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "rehype-format": "^5.0.1",
