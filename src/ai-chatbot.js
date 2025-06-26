@@ -1,5 +1,5 @@
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
-import { throttle, deepMerge, renderMarkdown, copyToClipboard } from './utils';
+import { throttle, deepMerge, renderMarkdown, copyToClipboard, extractRawCodeFromHighlight } from './utils';
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
@@ -137,13 +137,16 @@ export class AIChatbot {
             const target = e.target;
             const copyButton = target.closest('.ai-chatbot-code-copy-button');
             if (copyButton) {
-                const codeToCopy = copyButton.dataset.code;
-                copyToClipboard(codeToCopy, () => {
-                    copyButton.classList.add('copied');
-                    setTimeout(() => {
-                        copyButton.classList.remove('copied');
-                    }, 2000);
-                });
+                const codeNode = copyButton.closest('.ai-chatbot-codeblock-wrapper')?.querySelector('code');
+                if (codeNode) {
+                    const codeToCopy = extractRawCodeFromHighlight(codeNode);
+                    copyToClipboard(codeToCopy, () => {
+                        copyButton.classList.add('copied');
+                        setTimeout(() => {
+                            copyButton.classList.remove('copied');
+                        }, 3500);
+                    });
+                }
             }
         });
 
@@ -346,13 +349,13 @@ export class AIChatbot {
                 thinkingEle.classList.add('collapsed');
             }
             this.scrollToBottom();
-        }, 150);
+        }, 230);
 
         const renderMainContent = throttle((content) => {
             if (!mainContentEle) return;
             this.renderMessage(content, mainContentEle);
             this.scrollToBottom();
-        }, 150);
+        }, 230);
         
 
         const systemPrompt = openai?.systemPrompt || '';

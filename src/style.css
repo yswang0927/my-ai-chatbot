@@ -174,18 +174,21 @@
     margin-bottom: 12px;
     background-color: #fff;
     border-radius: 5px;
+    overflow: auto;
 }
 .ai-chatbot-message-content code {
     font-size: 0.9em;
-    background-color: #faebd7;
+    background-color: rgba(205, 66, 70, .1);
+    color: #ac2f33;
     border-radius: 5px;
-    padding: 3px 5px;
+    padding: 2px 5px;
     font-family: Menlo,Monaco,Consolas,monospace;
 }
 .ai-chatbot-message pre code {
     font-size: 0.9em;
     border-radius: inherit;
     background-color: transparent;
+    color: inherit;
 }
 .ai-chatbot-assistant-message .ai-chatbot-message {
     text-align: left;
@@ -403,18 +406,25 @@
     line-height: 1.0;
 }
 
+.ai-chatbot-codeblock-wrapper {
+    position: relative;
+}
 .ai-chatbot button.ai-chatbot-code-copy-button {
     position: absolute; 
+    z-index: 2;
     top: 5px; 
     right: 5px;
     min-width: 24px;
     height: 24px;
     padding: 4px;
-    display: inline-flex;
+    display: none;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    color: rgba(0,0,0,0.5);
+    color: #898989;
+}
+.ai-chatbot-codeblock-wrapper:hover .ai-chatbot-code-copy-button {
+    display: inline-flex;
 }
 .ai-chatbot-code-copy-button:hover {
     background-color: rgba(0,0,0,0.05);
@@ -425,24 +435,23 @@
     fill: currentColor;
     pointer-events: none;
 }
-.ai-chatbot-code-copy-button > span {
-    line-height: 1.0;
-    font-size: 0;
-}
-.ai-chatbot-code-copy-button .ai-chatbot-copy-icon,
-.ai-chatbot-code-copy-button .ai-chatbot-copied-icon,
-.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
+.ai-chatbot-code-copy-button .ai-chatbot-copy-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
-.ai-chatbot-code-copy-button .ai-chatbot-copied-icon {
+.ai-chatbot-code-copy-button .ai-chatbot-copied-icon,
+.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
     display: none;
+    align-items: center;
+    justify-content: center;
+}
+.ai-chatbot-code-copy-button .ai-chatbot-copied-icon {
     color: #32A467;
 }
 .ai-chatbot-code-copy-button .ai-chatbot-copied-text {
-    display: none;
     font-size: 12px;
+    flex: 1;
 }
 .ai-chatbot-code-copy-button.copied .ai-chatbot-copy-icon {
     display: none;
@@ -451,3 +460,4 @@
 .ai-chatbot-code-copy-button.copied .ai-chatbot-copied-text {
     display: inline-flex;
 }
+
