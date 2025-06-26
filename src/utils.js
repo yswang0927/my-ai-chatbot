@@ -15,6 +15,13 @@ import { h } from 'hastscript';
 
 import copySvg from './assets/copy.svg?raw';
 import copiedSvg from './assets/copied.svg?raw';
+import eyeSvg from './assets/eye.svg?raw';
+import codeSvg from './assets/code.svg?raw';
+import dwnSvg from './assets/download.svg?raw';
+import zoominSvg from './assets/zoomin.svg?raw';
+import zoomoutSvg from './assets/zoomout.svg?raw';
+import fullscreenSvg from './assets/fullscreen.svg?raw';
+import fitViewportSvg from './assets/fit-viewport.svg?raw';
 
 /**
  * 节流函数
@@ -67,6 +74,22 @@ export function deepMerge(target, source) {
 
   return target;
 };
+
+export function uuid() {
+  let timestamp = new Date().getTime();
+  let perforNow = (typeof performance !== 'undefined' && performance.now && performance.now() * 1000) || 0;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    let random = Math.random() * 16;
+    if (timestamp > 0) {
+      random = (timestamp + random) % 16 | 0;
+      timestamp = Math.floor(timestamp / 16);
+    } else {
+      random = (perforNow + random) % 16 | 0;
+      perforNow = Math.floor(perforNow / 16);
+    }
+    return (c === 'x' ? random : (random & 0x3) | 0x8).toString(16);
+  });
+}
 
 // 复制到剪贴板
 export function copyToClipboard(text, callback) {
@@ -232,12 +255,12 @@ function rehypeCodeCopyButton() {
         //const rawCodeText = codeNode.children.map(child => child.value).join('');
 
         const copyButton = h('button', {
-          className: 'ai-chatbot-code-copy-button',
+          className: 'ai-chatbot-copy-button ai-chatbot-code-copy-button',
           //'data-code': rawCodeText,
           title: '复制'
         }, [
-          h('span', { className: 'ai-chatbot-copy-icon' }, [{ type: 'raw', value: copySvg }]),
-          h('span', { className: 'ai-chatbot-copied-icon' }, [{ type: 'raw', value: copiedSvg }]),
+          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copy-icon' }, [{ type: 'raw', value: copySvg }]),
+          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copied-icon' }, [{ type: 'raw', value: copiedSvg }]),
           h('span', { className: 'ai-chatbot-copied-text' }, "已复制")
         ]);
 
@@ -255,6 +278,113 @@ function rehypeCodeCopyButton() {
   };
 }
 
+/**
+ * 添加 Mermaid 图表交互操作
+ */
+function rehypeMermaidButtons() {
+  return (tree) => {
+    visit(tree, 'element', (node, index, parent) => {
+      // 只处理 <pre> 标签下的 <code> 标签
+      if (node.tagName === 'pre' && node.children[0]?.tagName === 'code') {
+        const codeNode = node.children[0];
+        if (!codeNode.properties?.className.includes('language-mermaid')) {
+          return;
+        }
+
+        const rawCodeText = codeNode.children.map(child => child.value).join('');
+
+        const previewButton = h('button', {
+          className: 'ai-chatbot-mermaid-preview-button',
+          title: '预览图表'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: eyeSvg }])]);
+
+        const sourceButton = h('button', {
+          className: 'ai-chatbot-mermaid-source-button',
+          title: '源码'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: codeSvg }])]);
+
+        const dwnButton = h('button', {
+          className: 'ai-chatbot-mermaid-download-button',
+          title: '下载图表'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: dwnSvg }])]);
+
+        const copyButton = h('button', {
+          className: 'ai-chatbot-copy-button ai-chatbot-mermaid-copy-button',
+          title: '复制源码'
+        }, [
+          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copy-icon' }, [{ type: 'raw', value: copySvg }]),
+          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copied-icon' }, [{ type: 'raw', value: copiedSvg }])
+        ]);
+
+        const zoominButton = h('button', {
+          className: 'ai-chatbot-mermaid-zoomin-button',
+          title: '放大图表'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: zoominSvg }])]);
+
+        const zoomoutButton = h('button', {
+          className: 'ai-chatbot-mermaid-zoomout-button',
+          title: '缩小图表'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: zoomoutSvg }])]);
+        
+        const fullscreenButton = h('button', {
+          className: 'ai-chatbot-mermaid-fullscreen-button',
+          title: '全屏显示'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: fullscreenSvg }])]);
+        
+        const fitViewportButton = h('button', {
+          className: 'ai-chatbot-mermaid-fit-viewport-button',
+          title: '适应视口'
+        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: fitViewportSvg }])]);
+
+        const toolbarLeft = h('div', {
+          className: 'ai-chatbot-mermaid-toolbar-rl'
+        }, [h('span', {}, 'Mermaid')]);
+
+        const toolbarCenter = h('div', {
+          className: 'ai-chatbot-mermaid-toolbar-rc'
+        }, [h('div', {className:'ai-chatbot-button-group'}, [previewButton, sourceButton])]);
+
+        const previewButtons = h('div', {
+          className: 'ai-chatbot-button-group ai-chatbot-mermaid-preview-buttons'
+        }, [dwnButton, zoomoutButton, zoominButton, fitViewportButton]);
+
+        const sourceButtons = h('div', {
+          className: 'ai-chatbot-button-group ai-chatbot-mermaid-source-buttons'
+        }, [copyButton]);
+
+        const toolbarRight = h('div', {
+          className: 'ai-chatbot-mermaid-toolbar-rr'
+        }, [previewButtons, sourceButtons, fullscreenButton]);
+
+        const toolbar = h('div', {
+          className: 'ai-chatbot-mermaid-toolbar'
+        }, [toolbarLeft, toolbarCenter, toolbarRight]);
+
+        const previewContainer = h('div', {
+          className: 'ai-chatbot-mermaid-preview-container'
+        }, [h('div', {
+          className: 'ai-chatbot-mermaid-diagram'
+        }, [node])]); // 原始的 <pre> 节点
+
+        const sourceContainer = h('div', {
+          className: 'ai-chatbot-mermaid-source-container'
+        }, [h('pre', {}, rawCodeText)]);
+
+        const mermaidContainer = h('div', {
+          className: 'ai-chatbot-mermaid-container'
+        }, [previewContainer, sourceContainer]);
+
+        const wrapper = h('div', {
+          className: 'ai-chatbot-mermaid-wrapper show-mermaid-preview'
+        }, [toolbar, mermaidContainer]);
+
+        parent.children.splice(index, 1, wrapper);
+      }
+    });
+  };
+}
+
+
 // 注意插件位置顺序: 
 // -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
 // remarkMath 属于 remark 插件（处理 Markdown AST），
@@ -270,13 +400,15 @@ export const remarkProcessor = unified()
     throwOnError: false,
     strict: false
   })
+  .use(rehypeMermaidButtons)
   .use(rehypeMermaid, {
     errorFallback: function (element, diagram, error, vfile) {
-      return null;
+      console.error('mermaid渲染错误:', element, diagram, error, vfile);
+      return element;
     }
   })
-  .use(rehypeCodeCopyButton) // 添加代码块复制按钮在rehypeHighlight之前
-  .use(rehypeRaw) // 允许处理 HTML 中的原始标签
+  .use(rehypeCodeCopyButton)
+  .use(rehypeRaw) // 允许处理 hast 中的原始标签
   .use(rehypeHighlight)
   .use(rehypeFormat)
   .use(rehypeStringify);
@@ -310,3 +442,74 @@ export function extractRawCodeFromHighlight(codeNode) {
   });
   return text;
 }
+
+
+/**
+ * 下载 SVG 图像
+ */
+export function downloadSvg(svgCode, format) {
+  const namePrefix = `mermaid-diagram-${new Date().toISOString().replace(/-/g, "").slice(0, 8)}`;
+  if ('png' === format) {
+    //const svgString = new XMLSerializer().serializeToString(svgElement);
+    let svgEle;
+    try {
+      svgEle = new DOMParser().parseFromString(svgCode, "text/xml").querySelector("svg");
+    } catch(e) {
+      console.error('DOMParser failed to parse mermaid-svg-code: ', e);
+      return;
+    }
+    if (!svgEle) {
+      console.error('DOMParser failed to parse mermaid-svg-code');
+      return;
+    }
+
+    const svgW = svgEle.viewBox.baseVal.width, 
+          svgH = svgEle.viewBox.baseVal.height;
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = 3 * svgW,
+    canvas.height = 3 * svgH,
+    canvas.style.width = svgW + 'px',
+    canvas.style.height = svgH + 'px';
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.error('no svg-convas-context2d');
+      return;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.addEventListener('load', () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((d) => {
+        if (!d) {
+          return;
+        }
+        const url = URL.createObjectURL(d);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = namePrefix + '.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    });
+    const base64String = window.btoa(unescape(encodeURIComponent(svgCode)));
+    const svgBase64 = `data:image/svg+xml;base64,${base64String}`;
+    img.src = svgBase64;
+    return;
+  }
+  else if ('svg' === format) {
+    // download as svg
+    const blob = new Blob([svgCode], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = namePrefix + '.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+}
+

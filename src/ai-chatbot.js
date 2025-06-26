@@ -1,5 +1,12 @@
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
-import { throttle, deepMerge, renderMarkdown, copyToClipboard, extractRawCodeFromHighlight } from './utils';
+import { 
+    throttle, 
+    deepMerge, 
+    renderMarkdown, 
+    copyToClipboard, 
+    extractRawCodeFromHighlight, 
+    downloadSvg 
+} from './utils';
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
@@ -135,6 +142,8 @@ export class AIChatbot {
         // 事件委托
         this.messageContainer.addEventListener('click', (e) => {
             const target = e.target;
+
+            // 处理代码块复制按钮
             const copyButton = target.closest('.ai-chatbot-code-copy-button');
             if (copyButton) {
                 const codeNode = copyButton.closest('.ai-chatbot-codeblock-wrapper')?.querySelector('code');
@@ -147,7 +156,67 @@ export class AIChatbot {
                         }, 3500);
                     });
                 }
+                return;
             }
+
+            // 处理 Mermaid 预览按钮
+            const mermaidPreviewButton = target.closest('.ai-chatbot-mermaid-preview-button');
+            if (mermaidPreviewButton) {
+                const mermaidWrapper = mermaidPreviewButton.closest('.ai-chatbot-mermaid-wrapper');
+                if (!mermaidWrapper) {
+                    return;
+                }
+                mermaidWrapper.classList.remove('show-mermaid-source');
+                mermaidWrapper.classList.add('show-mermaid-preview');
+                return;
+            }
+            // 处理 Mermaid 源代码按钮
+            const mermaidSourceButton = target.closest('.ai-chatbot-mermaid-source-button');
+            if (mermaidSourceButton) {
+                const mermaidWrapper = mermaidSourceButton.closest('.ai-chatbot-mermaid-wrapper');
+                if (!mermaidWrapper) {
+                    return;
+                }
+                mermaidWrapper.classList.remove('show-mermaid-preview');
+                mermaidWrapper.classList.add('show-mermaid-source');
+                return;
+            }
+            // 处理 Mermaid 复制按钮
+            const mermaidCopyButton = target.closest('.ai-chatbot-mermaid-copy-button');
+            if (mermaidCopyButton) {
+                const mermaidWrapper = mermaidCopyButton.closest('.ai-chatbot-mermaid-wrapper');
+                if (!mermaidWrapper) {
+                    return;
+                }
+                const mermaidCode = mermaidWrapper.querySelector('.ai-chatbot-mermaid-source-container > pre');
+                if (mermaidCode) {
+                    copyToClipboard(mermaidCode.innerText, () => {
+                        mermaidCopyButton.classList.add('copied');
+                        setTimeout(() => {
+                            mermaidCopyButton.classList.remove('copied');
+                        }, 3500);
+                    });
+                }
+            }
+            // 处理下载SVG按钮
+            const mermaidDownloadButton = target.closest('.ai-chatbot-mermaid-download-button');
+            if (mermaidDownloadButton) {
+                const mermaidWrapper = mermaidDownloadButton.closest('.ai-chatbot-mermaid-wrapper');
+                if (!mermaidWrapper) {
+                    return;
+                }
+                const svgNode = mermaidWrapper.querySelector('.ai-chatbot-mermaid-diagram > svg');
+                if (svgNode) {
+                    downloadSvg(svgNode.outerHTML, 'svg');
+                }
+            }
+            // 处理 Mermaid 全屏按钮
+            const mermaidFullscreenButton = target.closest('.ai-chatbot-mermaid-fullscreen-button');
+            if (mermaidFullscreenButton) {
+                const mermaidWrapper = mermaidFullscreenButton.closest('.ai-chatbot-mermaid-wrapper');
+                mermaidWrapper && mermaidWrapper.classList.toggle('fullscreen');
+            }
+
         });
 
         if (this.actionNewSession) {

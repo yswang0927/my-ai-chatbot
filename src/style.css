@@ -27,12 +27,29 @@
     min-width: 24px;
     min-height: 24px;
     line-height: 1em;
-    padding: 0;
+    padding: 4px;
     background: none;
     box-shadow: none;
     box-sizing: border-box;
     border-radius: 5px;
 }
+.ai-chatbot button:hover {
+    background-color: rgba(0,0,0,0.06);
+}
+.ai-chatbot-button-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: rgba(0,0,0,0.6);
+}
+.ai-chatbot-button-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
 .ai-chatbot-header {
     display: flex;
     gap: 6px;
@@ -406,6 +423,34 @@
     line-height: 1.0;
 }
 
+/* 复制按钮通用样式 */
+.ai-chatbot-copy-button svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    pointer-events: none;
+}
+.ai-chatbot-copy-button .ai-chatbot-copied-icon,
+.ai-chatbot-copy-button .ai-chatbot-copied-text {
+    display: none;
+}
+.ai-chatbot-copy-button .ai-chatbot-copied-icon {
+    color: #32A467;
+}
+.ai-chatbot-copy-button .ai-chatbot-copied-text {
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex: 1;
+}
+.ai-chatbot-copy-button.copied .ai-chatbot-copy-icon {
+    display: none;
+}
+.ai-chatbot-copy-button.copied .ai-chatbot-copied-icon,
+.ai-chatbot-copy-button.copied .ai-chatbot-copied-text {
+    display: inline-flex;
+}
+
 .ai-chatbot-codeblock-wrapper {
     position: relative;
 }
@@ -424,40 +469,121 @@
     color: #898989;
 }
 .ai-chatbot-codeblock-wrapper:hover .ai-chatbot-code-copy-button {
-    display: inline-flex;
-}
-.ai-chatbot-code-copy-button:hover {
-    background-color: rgba(0,0,0,0.05);
-}
-.ai-chatbot-code-copy-button svg {
-    width: 16px;
-    height: 16px;
-    fill: currentColor;
-    pointer-events: none;
-}
-.ai-chatbot-code-copy-button .ai-chatbot-copy-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-.ai-chatbot-code-copy-button .ai-chatbot-copied-icon,
-.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
-    display: none;
-    align-items: center;
-    justify-content: center;
-}
-.ai-chatbot-code-copy-button .ai-chatbot-copied-icon {
-    color: #32A467;
-}
-.ai-chatbot-code-copy-button .ai-chatbot-copied-text {
-    font-size: 12px;
-    flex: 1;
-}
-.ai-chatbot-code-copy-button.copied .ai-chatbot-copy-icon {
-    display: none;
-}
-.ai-chatbot-code-copy-button.copied .ai-chatbot-copied-icon,
-.ai-chatbot-code-copy-button.copied .ai-chatbot-copied-text {
-    display: inline-flex;
+    display: inline-flex !important;
 }
 
+
+/* mermaid图表 */
+.ai-chatbot-mermaid-wrapper {
+    position: relative;
+    height: 380px;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border: 1px solid rgba(0,0,0,.1);
+    border-radius: 5px;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+}
+.ai-chatbot-mermaid-wrapper.fullscreen {
+    position: fixed !important;
+    width: 90%;
+    height: 90%;
+    top: 5%;
+    left: 5%;
+    right: 0;
+    z-index: 9999;
+    margin: 0;
+}
+.ai-chatbot-mermaid-toolbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    padding: 4px 8px;
+    background-color: #ebecef;
+    font-size: 0.9em;
+    color: #333;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+    box-sizing: border-box;
+}
+.ai-chatbot-mermaid-toolbar-rl,
+.ai-chatbot-mermaid-toolbar-rc,
+.ai-chatbot-mermaid-toolbar-rr {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+.ai-chatbot-mermaid-toolbar-rl {
+    justify-content: flex-start;
+}
+.ai-chatbot-mermaid-toolbar-rc {
+    justify-content: center;
+    gap: 4px;
+}
+.ai-chatbot-mermaid-toolbar-rr {
+    justify-content: flex-end;
+    gap: 4px;
+}
+.ai-chatbot-mermaid-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 100px;
+    padding: 2px;
+    box-sizing: border-box;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    overflow: hidden;
+}
+.ai-chatbot-mermaid-container > div {
+    width: 100%;
+    height: 100%;
+}
+.ai-chatbot-mermaid-preview-container {
+    width: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.ai-chatbot-mermaid-source-container {
+    width: 100%;
+    display: none;
+}
+.ai-chatbot-mermaid-source-container pre {
+    margin: 0;
+    padding: 5px 10px;
+}
+.ai-chatbot-mermaid-container .ai-chatbot-codeblock-wrapper {
+    width: 100%;
+    flex: 1;
+}
+.ai-chatbot-mermaid-preview-buttons,
+.ai-chatbot-mermaid-source-buttons {
+    display: none;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-preview .ai-chatbot-mermaid-preview-container {
+    display: flex;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-preview .ai-chatbot-mermaid-preview-button {
+    background-color: #fff;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-preview .ai-chatbot-mermaid-preview-buttons {
+    display: inline-flex;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-source .ai-chatbot-mermaid-source-container {
+    display: block;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-source .ai-chatbot-mermaid-source-button {
+    background-color: #fff;
+}
+.ai-chatbot-mermaid-wrapper.show-mermaid-source .ai-chatbot-mermaid-source-buttons {
+    display: inline-flex;
+}
