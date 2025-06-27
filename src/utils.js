@@ -7,6 +7,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeFormat from 'rehype-format';
 import rehypeMermaid from 'rehype-mermaid';
 import rehypeRaw from 'rehype-raw';
+import rehypeCallouts from 'rehype-callouts'
+import rehypeVideo from 'rehype-video';
 import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 import balanced from 'balanced-match';
@@ -368,7 +370,7 @@ function rehypeMermaidButtons() {
 
         const sourceContainer = h('div', {
           className: 'ai-chatbot-mermaid-source-container'
-        }, [h('pre', {}, rawCodeText)]);
+        }, [h('pre', { className: 'ai-chatbot-mermaid-source-pre' }, rawCodeText)]);
 
         const mermaidContainer = h('div', {
           className: 'ai-chatbot-mermaid-container'
@@ -402,6 +404,7 @@ export const remarkProcessor = unified()
   })
   .use(rehypeMermaidButtons)
   .use(rehypeMermaid, {
+    strategy: 'inline-svg',
     errorFallback: function (element, diagram, error, vfile) {
       console.error('mermaid渲染错误:', element, diagram, error, vfile);
       return element;
@@ -409,6 +412,8 @@ export const remarkProcessor = unified()
   })
   .use(rehypeCodeCopyButton)
   .use(rehypeRaw) // 允许处理 hast 中的原始标签
+  .use(rehypeVideo, { details: false })
+  .use(rehypeCallouts, { theme: 'github' })
   .use(rehypeHighlight)
   .use(rehypeFormat)
   .use(rehypeStringify);

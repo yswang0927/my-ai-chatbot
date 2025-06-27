@@ -10,6 +10,7 @@ import {
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
+import 'rehype-callouts/theme/github';
 
 import highlightStyle from 'highlight.js/styles/github.css?raw';
 import chatbotStyle from './style.css?raw';
@@ -188,7 +189,7 @@ export class AIChatbot {
                 if (!mermaidWrapper) {
                     return;
                 }
-                const mermaidCode = mermaidWrapper.querySelector('.ai-chatbot-mermaid-source-container > pre');
+                const mermaidCode = mermaidWrapper.querySelector('pre.ai-chatbot-mermaid-source-pre');
                 if (mermaidCode) {
                     copyToClipboard(mermaidCode.innerText, () => {
                         mermaidCopyButton.classList.add('copied');
@@ -316,7 +317,7 @@ export class AIChatbot {
             } else {
                 messageDiv.innerHTML = `<div class="ai-chatbot-avatar">${botIcon}</div>
                 <div class="ai-chatbot-message">
-                    <div class="ai-chatbot-message-thinking collapsed">
+                    <div class="ai-chatbot-message-thinking ai-chatbot-hide collapsed">
                         <div class="ai-chatbot-message-thinking-header">
                             <span class="ai-chatbot-message-thinking-tip"></span>
                             <span class="ai-chatbot-message-thinking-icon">${arrowRight}</span>
@@ -351,6 +352,19 @@ export class AIChatbot {
 
     setOpenai(options) {
         Object.assign(this.options.openai, options || {});
+    }
+
+    setMessages(messages) {
+        if (!Array.isArray(messages)) {
+            throw new Error('`messages` should be an array');
+        }
+        this.messages = messages;
+        this.messageContainer.innerHTML = '';
+        this.messages.forEach(msg => {
+            const isUser = msg.role === 'user';
+            this.addMessage(msg.content, isUser, false);
+        });
+        this.scrollToBottom();
     }
 
     /**
