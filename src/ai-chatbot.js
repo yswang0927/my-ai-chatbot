@@ -43,7 +43,7 @@ export class AIChatbot {
             },
             theme: 'light',
             style: {
-                '--primary-brand-color': '#007aff'
+                '--primary-brand-color': '#1e96eb'
             }
         }, options || {});
 
@@ -266,7 +266,16 @@ export class AIChatbot {
     }
 
     renderMessage(content, hostElement) {
-        renderMarkdown(content, hostElement);
+        renderMarkdown(content, (result) => {
+            hostElement.innerHTML = '';
+            if (typeof result === 'string') {
+                hostElement.innerHTML = result;
+            } else {
+                hostElement.appendChild(result);
+            }
+            hostElement.style.minHeight = hostElement.offsetHeight + 'px';
+            this.scrollToBottom();
+        });
     }
     
     newSession() {
@@ -431,13 +440,11 @@ export class AIChatbot {
             if (end) {
                 thinkingEle.classList.add('collapsed');
             }
-            this.scrollToBottom();
         }, 230);
 
         const renderMainContent = throttle((content) => {
             if (!mainContentEle) return;
             this.renderMessage(content, mainContentEle);
-            this.scrollToBottom();
         }, 230);
         
 

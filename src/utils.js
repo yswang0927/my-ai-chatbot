@@ -3,17 +3,16 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
+//import rehypeMathjax from 'rehype-mathjax';
 import rehypeHighlight from 'rehype-highlight';
-import rehypeFormat from 'rehype-format';
 import rehypeMermaid from 'rehype-mermaid';
-import rehypeRaw from 'rehype-raw';
-import rehypeCallouts from 'rehype-callouts'
+//import rehypeCallouts from 'rehype-callouts';
 import rehypeVideo from 'rehype-video';
-import rehypeStringify from 'rehype-stringify';
 import { unified } from 'unified';
 import balanced from 'balanced-match';
 import { visit } from 'unist-util-visit';
 import { h } from 'hastscript';
+import {html, find, svg} from 'property-information';
 
 import copySvg from './assets/copy.svg?raw';
 import copiedSvg from './assets/copied.svg?raw';
@@ -289,7 +288,7 @@ function rehypeMermaidButtons() {
       // 只处理 <pre> 标签下的 <code> 标签
       if (node.tagName === 'pre' && node.children[0]?.tagName === 'code') {
         const codeNode = node.children[0];
-        if (!codeNode.properties?.className.includes('language-mermaid')) {
+        if (!codeNode || !(codeNode.properties?.className?.includes('language-mermaid'))) {
           return;
         }
 
@@ -327,12 +326,12 @@ function rehypeMermaidButtons() {
           className: 'ai-chatbot-mermaid-zoomout-button',
           title: '缩小图表'
         }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: zoomoutSvg }])]);
-        
+
         const fullscreenButton = h('button', {
           className: 'ai-chatbot-mermaid-fullscreen-button',
           title: '全屏显示'
         }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: fullscreenSvg }])]);
-        
+
         const fitViewportButton = h('button', {
           className: 'ai-chatbot-mermaid-fit-viewport-button',
           title: '适应视口'
@@ -344,7 +343,7 @@ function rehypeMermaidButtons() {
 
         const toolbarCenter = h('div', {
           className: 'ai-chatbot-mermaid-toolbar-rc'
-        }, [h('div', {className:'ai-chatbot-button-group'}, [previewButton, sourceButton])]);
+        }, [h('div', { className: 'ai-chatbot-button-group' }, [previewButton, sourceButton])]);
 
         const previewButtons = h('div', {
           className: 'ai-chatbot-button-group ai-chatbot-mermaid-preview-buttons'
@@ -387,6 +386,128 @@ function rehypeMermaidButtons() {
 }
 
 
+// 直接将 HAST 转换为 DOM 元素, 提高渲染速度
+function hastToDom(hastNode, parentElement, namespace) {
+  if (!hastNode || !parentElement) {
+    return;
+  }
+
+  if (typeof hastNode === 'string') {
+    const textNode = document.createTextNode(hastNode);
+    parentElement.appendChild(textNode);
+    return;
+  }
+
+  const children = hastNode.children;
+
+  if (hastNode.type === 'root') {
+    if (typeof children === 'string') {
+      parentElement.appendChild(document.createTextNode(children));
+    } else if (Array.isArray(children)) {
+      children.forEach(child => hastToDom(child, parentElement, namespace));
+    } else if (typeof children === 'object') {
+      hastToDom(children, parentElement, namespace);
+    }
+    return;
+  }
+
+  const tagName = hastNode.tagName;
+
+  if (hastNode.type === 'element' && tagName) {
+    const props = hastNode.properties || {};
+    let foundNamespace = namespace || props.xmlns || (tagName === 'svg' ? 'http://www.w3.org/2000/svg' : null);
+    const isSvg = foundNamespace === 'http://www.w3.org/2000/svg' || tagName === 'svg';
+    
+    // svg-foreignObject的子元素使用HTML命名空间
+    if (parentElement.tagName === 'foreignObject') {
+      foundNamespace = 'http://www.w3.org/1999/xhtml'; // 确保HTML元素使用HTML命名空间
+    }
+
+    const el = foundNamespace 
+      ? document.createElementNS(foundNamespace, tagName) 
+      : document.createElement(tagName);
+
+    const schema = isSvg ? svg : html;
+
+    for (let key in props) {
+      if (Object.prototype.hasOwnProperty.call(props, key)) {
+        const info = find(schema, key);
+        let value = props[key];
+  
+        if (Array.isArray(value)) {
+          value = value.join(info.commaSeparated ? ', ' : ' ');
+        }
+  
+        if (info.mustUseProperty) {
+          el[info.property] = value;
+        }
+  
+        if (info.boolean || (info.overloadedBoolean && typeof value === 'boolean')) {
+          if (value) {
+            el.setAttribute(info.attribute, '');
+          }
+        } else if (info.booleanish) {
+          el.setAttribute(info.attribute, String(value));
+        } else if (value === true) {
+          el.setAttribute(info.attribute, '');
+        } else if (value || value === 0 || value === '') {
+          el.setAttribute(info.attribute, String(value));
+        }
+      }
+    }
+
+    if (children) {
+      if (typeof children === 'string') {
+        el.appendChild(document.createTextNode(children));
+      } else if (Array.isArray(children)) {
+        children.forEach(child => hastToDom(child, el, foundNamespace));
+      } else if (typeof children === 'object') {
+        hastToDom(children, el, foundNamespace);
+      }
+    }
+
+    parentElement.appendChild(el);
+    return;
+  }
+
+  if (hastNode.type === 'text') {
+    parentElement.appendChild(document.createTextNode(hastNode.value));
+    return;
+  }
+
+  if (hastNode.type === 'raw') {
+    let div = document.createElement('div');
+    div.innerHTML = hastNode.value;
+    const rawChildren = Array.from(div.childNodes);
+    rawChildren.forEach(child => {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        parentElement.appendChild(child);
+      } else if (child.nodeType === Node.TEXT_NODE) {
+        parentElement.appendChild(document.createTextNode(child.textContent));
+      } else if (child.nodeType === Node.COMMENT_NODE) {
+        parentElement.appendChild(document.createComment(child.textContent));
+      }
+    });
+    return;
+  }
+
+  if (hastNode.type === 'comment') {
+    parentElement.appendChild(document.createComment(hastNode.value));
+    return;
+  }
+
+  console.warn(`Unhandled hast node type: ${hastNode.type}`);
+}
+
+// 直接DOM对象编译器
+function rehypeDom() {
+  this.compiler = function(tree) {
+    let fragment = document.createDocumentFragment();
+    hastToDom(Array.isArray(tree) ? {type: 'root', children: tree} : tree, fragment);
+    return fragment;
+  };
+}
+
 // 注意插件位置顺序: 
 // -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
 // remarkMath 属于 remark 插件（处理 Markdown AST），
@@ -402,30 +523,37 @@ export const remarkProcessor = unified()
     throwOnError: false,
     strict: false
   })
+  //.use(rehypeMathjax)
   .use(rehypeMermaidButtons)
   .use(rehypeMermaid, {
     strategy: 'inline-svg',
     errorFallback: function (element, diagram, error, vfile) {
-      console.error('mermaid渲染错误:', element, diagram, error, vfile);
-      return element;
+      console.error('mermaid渲染错误:', element, error);
+      return h('div', {
+        className: 'ai-chatbot-mermaid-error'
+      }, [element, h('pre', { style: 'color:red' }, error.message || '')]);
+      
     }
   })
   .use(rehypeCodeCopyButton)
-  .use(rehypeRaw) // 允许处理 hast 中的原始标签
   .use(rehypeVideo, { details: false })
-  .use(rehypeCallouts, { theme: 'github' })
+  //.use(rehypeCallouts, { theme: 'github' })
   .use(rehypeHighlight)
-  .use(rehypeFormat)
-  .use(rehypeStringify);
+  .use(rehypeDom);
 
-export const renderMarkdown = (content, hostElement) => {
-  if (!hostElement) {
+export const renderMarkdown = (content, callback) => {
+  if (!callback) {
     return;
   }
 
   remarkProcessor.process(processLatexBrackets(content))
-    .then(html => hostElement.innerHTML = html)
-    .catch((e) => hostElement.innerHTML = content);
+    .then(vfile => {
+      callback(vfile.result);
+    })
+    .catch((e) => {
+      console.error('remarkProcessor process error: ', e);
+      callback(content);
+    });
 };
 
 /**
@@ -436,7 +564,7 @@ export const renderMarkdown = (content, hostElement) => {
  */
 export function extractRawCodeFromHighlight(codeNode) {
   var text = '';
-  codeNode.childNodes.forEach(function(child) {
+  codeNode.childNodes.forEach(function (child) {
     if (child.nodeType === Node.TEXT_NODE) {
       text += child.textContent;
     } else if (child.nodeName === 'BR') {
@@ -459,7 +587,7 @@ export function downloadSvg(svgCode, format) {
     let svgEle;
     try {
       svgEle = new DOMParser().parseFromString(svgCode, "text/xml").querySelector("svg");
-    } catch(e) {
+    } catch (e) {
       console.error('DOMParser failed to parse mermaid-svg-code: ', e);
       return;
     }
@@ -468,14 +596,14 @@ export function downloadSvg(svgCode, format) {
       return;
     }
 
-    const svgW = svgEle.viewBox.baseVal.width, 
-          svgH = svgEle.viewBox.baseVal.height;
-    
+    const svgW = svgEle.viewBox.baseVal.width,
+      svgH = svgEle.viewBox.baseVal.height;
+
     const canvas = document.createElement("canvas");
     canvas.width = 3 * svgW,
-    canvas.height = 3 * svgH,
-    canvas.style.width = svgW + 'px',
-    canvas.style.height = svgH + 'px';
+      canvas.height = 3 * svgH,
+      canvas.style.width = svgW + 'px',
+      canvas.style.height = svgH + 'px';
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       console.error('no svg-convas-context2d');
