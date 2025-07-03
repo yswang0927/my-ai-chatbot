@@ -1,28 +1,7 @@
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import remarkRehype from 'remark-rehype';
-import rehypeKatex from 'rehype-katex';
-//import rehypeMathjax from 'rehype-mathjax';
-import rehypeHighlight from 'rehype-highlight';
-import rehypeMermaid from 'rehype-mermaid';
-//import rehypeCallouts from 'rehype-callouts';
-import rehypeVideo from 'rehype-video';
-import { unified } from 'unified';
-import balanced from 'balanced-match';
-import { visit } from 'unist-util-visit';
-import { h } from 'hastscript';
-import {html, find, svg} from 'property-information';
-
-import copySvg from './assets/copy.svg?raw';
-import copiedSvg from './assets/copied.svg?raw';
-import eyeSvg from './assets/eye.svg?raw';
-import codeSvg from './assets/code.svg?raw';
-import dwnSvg from './assets/download.svg?raw';
-import zoominSvg from './assets/zoomin.svg?raw';
-import zoomoutSvg from './assets/zoomout.svg?raw';
-import fullscreenSvg from './assets/fullscreen.svg?raw';
-import fitViewportSvg from './assets/fit-viewport.svg?raw';
+// 判断对象是否是{}对象
+export const isPlainObject = (obj) => {
+  return !!obj && (obj.constructor === Object);
+};
 
 /**
  * 节流函数
@@ -76,6 +55,7 @@ export function deepMerge(target, source) {
   return target;
 };
 
+// 生成UUID值
 export function uuid() {
   let timestamp = new Date().getTime();
   let perforNow = (typeof performance !== 'undefined' && performance.now && performance.now() * 1000) || 0;
@@ -146,415 +126,220 @@ export function copyToClipboard(text, callback) {
   }
 };
 
+// 简单实现监听数组的增删操作
+// 建议使用: `watchArray()` 替代
+export function simpleWatchArray(arr, callback) {
+  const originalProto = Array.prototype;
+  const newProto = Object.create(originalProto);
+  
+  // 劫持数组原型方法
+  const arrayMethods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
+  
+  arrayMethods.forEach(method => {
+    newProto[method] = function(...args) {
+      const result = originalProto[method].apply(this, args);
+      callback(this);
+      return result;
+    };
+  });
 
-
-// 检查是否包含潜在的 LaTeX 模式
-const containsLatexRegex = /\\\(.*?\\\)|\\\[.*?\\\]|\$.*?\$|\\begin\{equation\}.*?\\end\{equation\}/;
-
-/**
- * 转换 LaTeX 公式括号 `\[\]` 和 `\(\)` 为 Markdown 格式 `$$...$$` 和 `$...$`
- *
- * remark-math 本身不支持 LaTeX 原生语法，作为替代的一些插件效果也不理想。
- *
- * 目前的实现：
- * - 保护代码块和链接，避免被 remark-math 处理
- * - 支持嵌套括号的平衡匹配
- * - 转义 `\\(x\\)` 会被处理为 `\$x\$`，`\\[x\\]` 会被处理为 `\$$x\$$`
- *
- * @see https://github.com/remarkjs/remark-math/issues/39
- * @param text 输入的 Markdown 文本
- * @returns 处理后的字符串
- */
-export const processLatexBrackets = (text) => {
-  // 没有 LaTeX 模式直接返回
-  if (!containsLatexRegex.test(text)) {
-    return text;
-  }
-
-  // 保护代码块和链接
-  const protectedItems = [];
-  let processedContent = text;
-
-  processedContent = processedContent
-    // 保护代码块（包括多行代码块和行内代码）
-    .replace(/(```[\s\S]*?```|`[^`]*`)/g, (match) => {
-      const index = protectedItems.length
-      protectedItems.push(match)
-      return `__AI_CHATBOT_PROTECTED_${index}__`
-    })
-    // 保护链接 [text](url)
-    .replace(/\[([^[\]]*(?:\[[^\]]*\][^[\]]*)*)\]\([^)]*?\)/g, (match) => {
-      const index = protectedItems.length
-      protectedItems.push(match)
-      return `__AI_CHATBOT_PROTECTED_${index}__`
-    });
-
-  // LaTeX 括号转换函数
-  const processMath = (content, openDelim, closeDelim, wrapper) => {
-    let result = '';
-    let remaining = content;
-
-    while (remaining.length > 0) {
-      const match = balanced(openDelim, closeDelim, remaining);
-      if (!match) {
-        result += remaining;
-        break;
-      }
-
-      result += match.pre;
-      result += `${wrapper}${match.body}${wrapper}`;
-      remaining = match.post;
-    }
-
-    return result;
-  }
-
-  // 先处理块级公式，再处理内联公式
-  let result = processMath(processedContent, '\\[', '\\]', '$$');
-  result = processMath(result, '\\(', '\\)', '$');
-
-  // 还原被保护的内容
-  result = result.replace(/__AI_CHATBOT_PROTECTED_(\d+)__/g, (match, indexStr) => {
-    const index = parseInt(indexStr, 10);
-    // 添加边界检查，防止数组越界
-    if (index >= 0 && index < protectedItems.length) {
-      return protectedItems[index];
-    }
-    // 如果索引无效，保持原始匹配
-    return match;
-  })
-
-  return result;
+  Object.setPrototypeOf(arr, newProto);
 };
 
 /**
- * 转换数学公式格式：
- * - 将 LaTeX 格式的 '\\[' 和 '\\]' 转换为 '$$$$'。
- * - 将 LaTeX 格式的 '\\(' 和 '\\)' 转换为 '$$'。
- * @param {string} input 输入字符串
- * @returns {string} 转换后的字符串
+ * 使用ES6-Proxy实现监听数组的增删改操作.
+ * const arr = watchArray([], (arr:[], changes:[{type:'add|update|delete|...', index, oldValue, value}]) => {
+ *   console.log('变化后的数组:', arr, '变更记录:', changes);
+ * });
+ * 
+ * arr.push(1,2,3);
+ * arr[2] = 22;
+ * arr.splice(1,1);
+ * arr.length = 0;
  */
-export function convertMathFormula(input) {
-  if (!input) return input;
+const observerToProxyMap = new WeakMap(); // 存储: 原始数组 -> 代理数组
+const observerToRawMap = new WeakMap(); // 存储: 代理数组 -> 原始数组
+// 定义需要劫持的数组变异方法
+const arrayMutationMethods = [ 'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse' ];
+export function watchArray(array, callback) {
+  // 避免重复代理
+  if (observerToRawMap.has(array)) {
+    return array;
+  }
+  if (observerToProxyMap.has(array)) {
+    return observerToProxyMap.get(array);
+  }
 
-  let result = input;
-  result = result.replaceAll('\\[', '$$$$').replaceAll('\\]', '$$$$');
-  result = result.replaceAll('\\(', '$$').replaceAll('\\)', '$$');
-  return result;
-};
+  if (!Array.isArray(array)) {
+    return array;
+  }
 
-
-/**
- * 添加代码块复制按钮的 Rehype 插件
- */
-function rehypeCodeCopyButton() {
-  return (tree) => {
-    visit(tree, 'element', (node, index, parent) => {
-      // 只处理 <pre> 标签下的 <code> 标签
-      if (node.tagName === 'pre' && node.children[0]?.tagName === 'code') {
-        //const codeNode = node.children[0];
-        //const rawCodeText = codeNode.children.map(child => child.value).join('');
-
-        const copyButton = h('button', {
-          className: 'ai-chatbot-copy-button ai-chatbot-code-copy-button',
-          //'data-code': rawCodeText,
-          title: '复制'
-        }, [
-          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copy-icon' }, [{ type: 'raw', value: copySvg }]),
-          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copied-icon' }, [{ type: 'raw', value: copiedSvg }]),
-          h('span', { className: 'ai-chatbot-copied-text' }, "已复制")
-        ]);
-
-        const wrapper = h('div', {
-          className: 'ai-chatbot-codeblock-wrapper',
-          style: 'position: relative;'
-        }, [
-          node, // 原始的 <pre> 节点
-          copyButton
-        ]);
-
-        parent.children.splice(index, 1, wrapper);
+  if (typeof callback !== 'function') {
+    return new Proxy(array, {
+      set(target, property, value, receiver) {
+        return Reflect.set(target, property, value, receiver);
+      },
+      deleteProperty(target, property) {
+        return Reflect.deleteProperty(target, property);
       }
     });
-  };
-}
-
-/**
- * 添加 Mermaid 图表交互操作
- */
-function rehypeMermaidButtons() {
-  return (tree) => {
-    visit(tree, 'element', (node, index, parent) => {
-      // 只处理 <pre> 标签下的 <code> 标签
-      if (node.tagName === 'pre' && node.children[0]?.tagName === 'code') {
-        const codeNode = node.children[0];
-        if (!codeNode || !(codeNode.properties?.className?.includes('language-mermaid'))) {
-          return;
-        }
-
-        const rawCodeText = codeNode.children.map(child => child.value).join('');
-
-        const previewButton = h('button', {
-          className: 'ai-chatbot-mermaid-preview-button',
-          title: '预览图表'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: eyeSvg }])]);
-
-        const sourceButton = h('button', {
-          className: 'ai-chatbot-mermaid-source-button',
-          title: '源码'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: codeSvg }])]);
-
-        const dwnButton = h('button', {
-          className: 'ai-chatbot-mermaid-download-button',
-          title: '下载图表'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: dwnSvg }])]);
-
-        const copyButton = h('button', {
-          className: 'ai-chatbot-copy-button ai-chatbot-mermaid-copy-button',
-          title: '复制源码'
-        }, [
-          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copy-icon' }, [{ type: 'raw', value: copySvg }]),
-          h('span', { className: 'ai-chatbot-button-icon ai-chatbot-copied-icon' }, [{ type: 'raw', value: copiedSvg }])
-        ]);
-
-        const zoominButton = h('button', {
-          className: 'ai-chatbot-mermaid-zoomin-button',
-          title: '放大图表'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: zoominSvg }])]);
-
-        const zoomoutButton = h('button', {
-          className: 'ai-chatbot-mermaid-zoomout-button',
-          title: '缩小图表'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: zoomoutSvg }])]);
-
-        const fullscreenButton = h('button', {
-          className: 'ai-chatbot-mermaid-fullscreen-button',
-          title: '全屏显示'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: fullscreenSvg }])]);
-
-        const fitViewportButton = h('button', {
-          className: 'ai-chatbot-mermaid-fit-viewport-button',
-          title: '适应视口'
-        }, [h('span', { className: 'ai-chatbot-button-icon' }, [{ type: 'raw', value: fitViewportSvg }])]);
-
-        const toolbarLeft = h('div', {
-          className: 'ai-chatbot-mermaid-toolbar-rl'
-        }, [h('span', {}, 'Mermaid')]);
-
-        const toolbarCenter = h('div', {
-          className: 'ai-chatbot-mermaid-toolbar-rc'
-        }, [h('div', { className: 'ai-chatbot-button-group' }, [previewButton, sourceButton])]);
-
-        const previewButtons = h('div', {
-          className: 'ai-chatbot-button-group ai-chatbot-mermaid-preview-buttons'
-        }, [dwnButton, zoomoutButton, zoominButton, fitViewportButton]);
-
-        const sourceButtons = h('div', {
-          className: 'ai-chatbot-button-group ai-chatbot-mermaid-source-buttons'
-        }, [copyButton]);
-
-        const toolbarRight = h('div', {
-          className: 'ai-chatbot-mermaid-toolbar-rr'
-        }, [previewButtons, sourceButtons, fullscreenButton]);
-
-        const toolbar = h('div', {
-          className: 'ai-chatbot-mermaid-toolbar'
-        }, [toolbarLeft, toolbarCenter, toolbarRight]);
-
-        const previewContainer = h('div', {
-          className: 'ai-chatbot-mermaid-preview-container'
-        }, [h('div', {
-          className: 'ai-chatbot-mermaid-diagram'
-        }, [node])]); // 原始的 <pre> 节点
-
-        const sourceContainer = h('div', {
-          className: 'ai-chatbot-mermaid-source-container'
-        }, [h('pre', { className: 'ai-chatbot-mermaid-source-pre' }, rawCodeText)]);
-
-        const mermaidContainer = h('div', {
-          className: 'ai-chatbot-mermaid-container'
-        }, [previewContainer, sourceContainer]);
-
-        const wrapper = h('div', {
-          className: 'ai-chatbot-mermaid-wrapper show-mermaid-preview'
-        }, [toolbar, mermaidContainer]);
-
-        parent.children.splice(index, 1, wrapper);
-      }
-    });
-  };
-}
-
-
-// 直接将 HAST 转换为 DOM 元素, 提高渲染速度
-function hastToDom(hastNode, parentElement, namespace) {
-  if (!hastNode || !parentElement) {
-    return;
   }
 
-  if (typeof hastNode === 'string') {
-    const textNode = document.createTextNode(hastNode);
-    parentElement.appendChild(textNode);
-    return;
-  }
+  let pendingUpdate = false;
+  let changes = []; //收集本次批处理周期内的所有变更记录
 
-  const children = hastNode.children;
-
-  if (hastNode.type === 'root') {
-    if (typeof children === 'string') {
-      parentElement.appendChild(document.createTextNode(children));
-    } else if (Array.isArray(children)) {
-      children.forEach(child => hastToDom(child, parentElement, namespace));
-    } else if (typeof children === 'object') {
-      hastToDom(children, parentElement, namespace);
+  function scheduleUpdate(target) {
+    if (!pendingUpdate) {
+      pendingUpdate = true;
+      Promise.resolve().then(() => {
+        pendingUpdate = false;
+        const currentChanges = [...changes];
+        changes = [];
+        callback(target, currentChanges);
+      });
     }
-    return;
   }
 
-  const tagName = hastNode.tagName;
+  const proxyHandler = {
+    get(target, property, receiver) {
+      // 如果访问的是需要劫持的数组变异方法
+      if (arrayMutationMethods.includes(property)) {
+        const originalMethod = target[property];
+        // 返回一个封装后的方法
+        return function (...args) {
+          let result;
+          let oldLength = target.length;
+          let removedItems = []; // 用于 splice, pop, shift
+          
+          switch (property) {
+            case 'push':
+            case 'unshift':
+              // push 和 unshift 会在末尾/开头添加元素
+              // 在执行前，我们不知道新元素的最终索引，但知道它们是添加操作
+              args.forEach((item, i) => {
+                // 实际索引会在原生方法执行后确定，这里先记录为添加
+                // 准确的索引可以在回调中根据数组新状态推断，或这里暂时用占位符
+                changes.push({ type: 'add', value: item });
+              });
+              result = Reflect.apply(originalMethod, target, args);
+              break;
+            case 'pop':
+            case 'shift':
+              // pop 和 shift 会删除元素，我们需要在删除前获取被删除的元素
+              const removedIndex = property === 'pop' ? oldLength - 1 : 0;
+              const removedItem = target[removedIndex];
+              result = Reflect.apply(originalMethod, target, args);
+              if (removedItem !== undefined) {
+                changes.push({ type: 'delete', index: removedIndex, oldValue: removedItem });
+              }
+              break;
+            case 'splice':
+              // splice 是最复杂的，它可能删除、添加、移动
+              const start = args[0];
+              const deleteCount = args[1];
+              const itemsToAdd = args.slice(2);
 
-  if (hastNode.type === 'element' && tagName) {
-    const props = hastNode.properties || {};
-    let foundNamespace = namespace || props.xmlns || (tagName === 'svg' ? 'http://www.w3.org/2000/svg' : null);
-    const isSvg = foundNamespace === 'http://www.w3.org/2000/svg' || tagName === 'svg';
-    
-    // svg-foreignObject的子元素使用HTML命名空间
-    if (parentElement.tagName === 'foreignObject') {
-      foundNamespace = 'http://www.w3.org/1999/xhtml'; // 确保HTML元素使用HTML命名空间
-    }
+              // 在执行原生 splice 前，获取将被删除的元素
+              removedItems = Reflect.apply(target.slice, target, [start, start + deleteCount]);
+              result = Reflect.apply(originalMethod, target, args);
 
-    const el = foundNamespace 
-      ? document.createElementNS(foundNamespace, tagName) 
-      : document.createElement(tagName);
+              // 记录 splice 操作的整体变更
+              if (itemsToAdd.length > 0) {
+                itemsToAdd.forEach(item => {
+                  changes.push({type: 'add', value: item});
+                });
+              }
 
-    const schema = isSvg ? svg : html;
+              if (removedItems.length > 0) {
+                removedItems.forEach((item, i) => {
+                  changes.push({type: 'delete', index: (start + i), oldValue: item});
+                });
+              }
 
-    for (let key in props) {
-      if (Object.prototype.hasOwnProperty.call(props, key)) {
-        const info = find(schema, key);
-        let value = props[key];
-  
-        if (Array.isArray(value)) {
-          value = value.join(info.commaSeparated ? ', ' : ' ');
-        }
-  
-        if (info.mustUseProperty) {
-          el[info.property] = value;
-        }
-  
-        if (info.boolean || (info.overloadedBoolean && typeof value === 'boolean')) {
-          if (value) {
-            el.setAttribute(info.attribute, '');
+              /*changes.push({
+                type: 'splice',
+                index: start,
+                deleteCount: deleteCount,
+                itemsToAdd: itemsToAdd,
+                removedItems: removedItems,
+                newLength: target.length,
+                oldLength: oldLength
+              });*/
+              break;
+            case 'sort':
+            case 'reverse':
+              result = Reflect.apply(originalMethod, target, args);
+              changes.push({ type: 'reorder' });
+              break;
+            default:
+              result = Reflect.apply(originalMethod, target, args);
+              break;
           }
-        } else if (info.booleanish) {
-          el.setAttribute(info.attribute, String(value));
-        } else if (value === true) {
-          el.setAttribute(info.attribute, '');
-        } else if (value || value === 0 || value === '') {
-          el.setAttribute(info.attribute, String(value));
+          scheduleUpdate(target);
+          return result;
+        };
+      }
+
+      return Reflect.get(target, property, receiver);
+    },
+    set(target, property, value, receiver) {
+      const hadProperty = Object.prototype.hasOwnProperty.call(target, property);
+      const oldValue = target[property];
+      const isNumericIndex = Number.isInteger(Number(property));
+      const result = Reflect.set(target, property, value, receiver);
+
+      if (isNumericIndex) {
+        if (!hadProperty) {
+          changes.push({ type: 'add', index: Number(property), value: value });
+        } else if (value !== oldValue) {
+          changes.push({ type: 'update', index: Number(property), oldValue: oldValue, value: value });
+        }
+
+      } else if (property === 'length') {
+        if (value !== oldValue) {
+          changes.push({ type: 'length', oldValue: oldValue, value: value });
+        }
+
+      } else {
+        if (!hadProperty) {
+          changes.push({ type: 'add_attr', property: String(property), value: value });
+        } else if (value !== oldValue) {
+          changes.push({ type: 'update_attr', property: String(property), oldValue: oldValue, value: value });
         }
       }
-    }
 
-    if (children) {
-      if (typeof children === 'string') {
-        el.appendChild(document.createTextNode(children));
-      } else if (Array.isArray(children)) {
-        children.forEach(child => hastToDom(child, el, foundNamespace));
-      } else if (typeof children === 'object') {
-        hastToDom(children, el, foundNamespace);
+      if (changes.length > 0) {
+        scheduleUpdate(target);
       }
-    }
 
-    parentElement.appendChild(el);
-    return;
-  }
+      return result;
+    },
+    deleteProperty(target, property) {
+      const hadProperty = Object.prototype.hasOwnProperty.call(target, property);
+      const oldValue = target[property];
+      const result = Reflect.deleteProperty(target, property);
 
-  if (hastNode.type === 'text') {
-    parentElement.appendChild(document.createTextNode(hastNode.value));
-    return;
-  }
-
-  if (hastNode.type === 'raw') {
-    let div = document.createElement('div');
-    div.innerHTML = hastNode.value;
-    const rawChildren = Array.from(div.childNodes);
-    rawChildren.forEach(child => {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        parentElement.appendChild(child);
-      } else if (child.nodeType === Node.TEXT_NODE) {
-        parentElement.appendChild(document.createTextNode(child.textContent));
-      } else if (child.nodeType === Node.COMMENT_NODE) {
-        parentElement.appendChild(document.createComment(child.textContent));
+      if (result && hadProperty) {
+        if (Number.isInteger(Number(property))) {
+          changes.push({ type: 'delete', index: Number(property), oldValue: oldValue });
+        } else {
+          changes.push({ type: 'delete_attr', property: String(property), oldValue: oldValue });
+        }
+        scheduleUpdate(target);
       }
-    });
-    return;
-  }
 
-  if (hastNode.type === 'comment') {
-    parentElement.appendChild(document.createComment(hastNode.value));
-    return;
-  }
-
-  console.warn(`Unhandled hast node type: ${hastNode.type}`);
-}
-
-// 直接DOM对象编译器
-function rehypeDom() {
-  this.compiler = function(tree) {
-    let fragment = document.createDocumentFragment();
-    hastToDom(Array.isArray(tree) ? {type: 'root', children: tree} : tree, fragment);
-    return fragment;
+      return result;
+    }
   };
+
+  const observedArray = new Proxy(array, proxyHandler);
+
+  observerToProxyMap.set(array, observedArray);
+  observerToRawMap.set(observedArray, array);
+
+  return observedArray;
 }
 
-// 注意插件位置顺序: 
-// -markdown->+  (remark)  +-mdast->+ (remark plugins) +-mdast->+ (remark-rehype) +-hast->+ (rehype plugins) +-hast-> ...
-// remarkMath 属于 remark 插件（处理 Markdown AST），
-// 而 rehypeKatex 和 rehypeHighlight 属于 rehype 插件（处理 HTML AST）,
-// remarkRehype 必须在 remarkMath 之后，且在 rehypeKatex 和 rehypeHighlight 之前
-export const remarkProcessor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkMath)
-  .use(remarkRehype, { allowDangerousHtml: true }) // 从 Markdown AST 转换到 HTML AST
-  .use(rehypeKatex, {
-    output: 'mathml', // html | mathml | htmlAndMathml
-    throwOnError: false,
-    strict: false
-  })
-  //.use(rehypeMathjax)
-  .use(rehypeMermaidButtons)
-  .use(rehypeMermaid, {
-    strategy: 'inline-svg',
-    errorFallback: function (element, diagram, error, vfile) {
-      console.error('mermaid渲染错误:', element, error);
-      return h('div', {
-        className: 'ai-chatbot-mermaid-error'
-      }, [element, h('pre', { style: 'color:red' }, error.message || '')]);
-      
-    }
-  })
-  .use(rehypeCodeCopyButton)
-  .use(rehypeVideo, { details: false })
-  //.use(rehypeCallouts, { theme: 'github' })
-  .use(rehypeHighlight)
-  .use(rehypeDom);
-
-export const renderMarkdown = (content, callback) => {
-  if (!callback) {
-    return;
-  }
-
-  remarkProcessor.process(processLatexBrackets(content))
-    .then(vfile => {
-      callback(vfile.result);
-    })
-    .catch((e) => {
-      console.error('remarkProcessor process error: ', e);
-      callback(content);
-    });
-};
 
 /**
  * 从高亮的代码节点中提取原始代码文本,
