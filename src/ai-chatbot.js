@@ -1,12 +1,16 @@
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { 
+    isPlainObject,
     throttle, 
     deepMerge, 
-    renderMarkdown, 
     copyToClipboard, 
     extractRawCodeFromHighlight, 
-    downloadSvg 
+    downloadSvg,
+    uuid,
+    watchArray
 } from './utils';
+
+import { renderMarkdown } from './markdown';
 
 //import './style.css';
 import 'katex/dist/katex.min.css';
@@ -21,14 +25,21 @@ import abortIcon from './assets/abort.svg?raw';
 import arrowRight from './assets/arrow-right.svg?raw';
 import plusIcon from './assets/plus.svg?raw';
 import closeIcon from './assets/close.svg?raw';
+import attachIcon from './assets/attach.svg?raw';
+import micIcon from './assets/mic.svg?raw';
+import webSearchIcon from './assets/websearch.svg?raw';
+import settingsIcon from './assets/settings.svg?raw';
+import hammerIcon from './assets/hammer.svg?raw';
 
 
 export class AIChatbot {
     constructor(options) {
         this.options = deepMerge({
             container: document.body,
-            tools: [], // [{icon, label}]
-            onToolsClick: (tool, chatbot, event) => {},
+            theme: 'light',
+            style: {
+                '--aichatbot-primary-brand-color': '#1e96eb'
+            },
             openai: {
                 url: '',
                 apiKey: '',
@@ -41,10 +52,27 @@ export class AIChatbot {
                 closable: true,
                 onClose: function() {}
             },
-            theme: 'light',
-            style: {
-                '--primary-brand-color': '#1e96eb'
-            }
+            file: {
+                enabled: true,
+                onUpload: null
+            },
+            mcp: {
+                enabled: true,
+                searchMcp: () => Promise.resolve([])
+            },
+            // 语音输入
+            micInput: {
+                enabled: true,
+                onMicInput: () => Promise.resolve(null)
+            },
+            // 联网搜索
+            webSearch: {
+                enabled: true,
+                onSearch: () => Promise.resolve(null)
+            },
+            tools: [], // [{icon, label}]
+            onToolsClick: (tool, chatbot, event) => {}
+           
         }, options || {});
 
         let container = this.options.container;
@@ -59,21 +87,26 @@ export class AIChatbot {
         }
 
         let chatbotHeader = '';
-        if (typeof this.options.header === 'object') {
+        if (isPlainObject(this.options.header)) {
             const { botIcon, botTitle } = this.options.header;
             chatbotHeader = `
             <div class="ai-chatbot-header">
-                <div>
+                <div class="ai-chatbot-panel-l">
                     <span class="ai-chatbot-header-icon">${botIcon}</span>
                     <span class="ai-chatbot-header-title">${botTitle}</span>
                 </div>
-                <div class="ai-chatbot-header-actions">
-                    <button class="ai-chatbot-action-new">${plusIcon}</button>
-                    <button class="ai-chatbot-action-close">${closeIcon}</button>
+                <div class="ai-chatbot-panel-r">
+                    <button class="ai-chatbot-button ai-chatbot-action-newsession" data-variant="minimal">${plusIcon}</button>
+                    <button class="ai-chatbot-button ai-chatbot-action-close" data-variant="minimal">${closeIcon}</button>
                 </div>
             </div>
             `;
         }
+
+        const fileEnabled = isPlainObject(this.options.file) && this.options.file.enabled;
+        const micInputEnabled = isPlainObject(this.options.micInput) && this.options.micInput.enabled;
+        const webSearchEnabled = isPlainObject(this.options.webSearch) && this.options.webSearch.enabled;
+        const mcpEnabled = isPlainObject(this.options.mcp) && this.options.mcp.enabled;
 
         const shadowContainer = container.attachShadow({ mode: "open" });
 
@@ -82,21 +115,42 @@ export class AIChatbot {
         :host {
             height:100%;
             display:block;
-            --primary-brand-color: ${this.options.style['--primary-brand-color']};
         }
         ${highlightStyle}
         ${chatbotStyle}
+        .ai-chatbot {
+            --aichatbot-primary-brand-color: ${this.options.style['--aichatbot-primary-brand-color']};
+        }
         </style>
         <div class="ai-chatbot">
             ${chatbotHeader}
-            <div class="ai-chatbot-messages"></div>
-            <div class="ai-chatbot-suggestion">
-                <div class="ai-chatbot-suggestion-tools"></div>
-                <div class="ai-chatbot-input-group">
-                    <textarea class="ai-chatbot-user-input" name="ai-chatbot-user-input" rows="1" cols="10" placeholder="有什么问题尽管问我"></textarea>
+            <div data-ref="chatbot-messages" class="ai-chatbot-messages"></div>
+            <div class="ai-chatbot-composer">
+                <div data-ref="suggestion-tools" class="ai-chatbot-suggestion-tools"></div>
+                <div data-ref="input-container" class="ai-chatbot-input-container">
+                    <div data-ref="preview-grid" class="ai-chatbot-file-preview-grid ai-chatbot-hide"></div>
+                    <textarea data-ref="user-input" class="ai-chatbot-user-input" name="ai-chatbot-user-input" rows="2" cols="10" placeholder="有什么问题尽管问我"></textarea>
                     <div class="ai-chatbot-input-actions">
-                        <button class="ai-chatbot-send-btn">${sendIcon}</button>
-                        <button class="ai-chatbot-abort-btn ai-chatbot-hide">${abortIcon}</button>
+                        <div class="ai-chatbot-panel-l">
+                            ${ fileEnabled ? '<button data-ref="action-selectfile" class="ai-chatbot-button ai-chatbot-action-selectfile" data-variant="outline" style="position:relative;" title="添加文件"><span class="ai-chatbot-icon">'+ attachIcon +'</span><input data-ref="file-input" type="file" class="ai-chatbot-file-input" style="position:absolute;width:100%;height:100%;z-index:1;opacity:0;" multiple accept="application/json,application/javascript,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet,application/vnd.ms-excel.sheet.binary.macroEnabled.12,application/vnd.apple.numbers,text/markdown,application/x-yaml,application/xml,application/typescript,text/typescript,text/x-typescript,application/x-typescript,application/x-sh,text/*,application/pdf,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/html,text/css,application/xhtml+xml,.js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.cs,.go,.rb,.php,.rs,.swift,.kt,.scala,.pl,.lua,.sh,.json,.yaml,.yml,.xml,.html,.htm,.css,.md,audio/mp3,audio/wav,audio/mp4,audio/mpeg,.mp3,.wav,.m4a"/></button>' : '' }
+                            ${ webSearchEnabled ? '<button data-ref="action-websearch" class="ai-chatbot-button ai-chatbot-action-websearch" data-variant="outline" title="联网搜索"><span class="ai-chatbot-icon">'+ webSearchIcon +'</span></button>' : '' }
+                            ${ mcpEnabled ? '<button data-ref="action-mcp" class="ai-chatbot-button ai-chatbot-action-mcp" data-variant="outline" title="MCP调用"><span class="ai-chatbot-icon">'+ hammerIcon +'</span></button>' : '' }
+                            <div class="ai-chatbot-button-group">
+                                <button data-ref="action-models" class="ai-chatbot-button ai-chatbot-action-models">
+                                    <span class="ai-chatbot-icon"></span>
+                                    <span class="ai-chatbot-button-text">Qwen2.5</span>
+                                    <span class="ai-chatbot-icon">${arrowRight}</span>
+                                </button>
+                                <button data-ref="action-model-settings" class="ai-chatbot-button ai-chatbot-action-model-settings">
+                                    <span class="ai-chatbot-icon">${settingsIcon}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ai-chatbot-panel-r">
+                            ${ micInputEnabled ? '<button data-ref="action-mic" class="ai-chatbot-button ai-chatbot-action-mic" data-variant="outline" title="语音输入"><span class="ai-chatbot-icon">'+ micIcon +'</span></button>' : '' }
+                            <button data-ref="action-send" class="ai-chatbot-button ai-chatbot-action-send" data-intent="emphasis" title="发送" disabled><span class="ai-chatbot-icon">${sendIcon}</span></button>
+                            <button data-ref="action-abort" class="ai-chatbot-button ai-chatbot-action-abort ai-chatbot-hide" data-variant="minimal" title="停止输出"><span class="ai-chatbot-icon">${abortIcon}</span></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -104,46 +158,82 @@ export class AIChatbot {
         `;
 
         this.messages = [];
+        this._refs = {};
         this._loading = false;
         this._abortController = null;
         this._autoScrolling = true;
+        this._files = [];
 
-        this.messageContainer = shadowContainer.querySelector('.ai-chatbot-messages');
-        this.userInput = shadowContainer.querySelector('textarea.ai-chatbot-user-input');
-        this.sendButton = shadowContainer.querySelector('button.ai-chatbot-send-btn');
-        this.abortButton = shadowContainer.querySelector('button.ai-chatbot-abort-btn');
-        this.toolsContainer = shadowContainer.querySelector('.ai-chatbot-suggestion-tools');
-        this.actionNewSession = shadowContainer.querySelector('button.ai-chatbot-action-new');
-        this.actionClose = shadowContainer.querySelector('button.ai-chatbot-action-close');
-        
+        const refEles = shadowContainer.querySelectorAll('[data-ref]');
+        refEles.forEach(ele => {
+            this._refs[ele.getAttribute('data-ref')] = ele;
+        });
+
         this.setupEventListeners();
         this.setupTools();
     }
     
     setupEventListeners() {
-        this.userInput.addEventListener('keypress', (e) => {
+        const userInputRef = this._refs['user-input'];
+        this._refs['input-container'].addEventListener('pointerdown', (e) => {
+            (e.target !== userInputRef) && (e.preventDefault(), userInputRef.focus());
+        });
+
+        userInputRef.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                this.sendMessage(this.userInput.value.trim());
+                this.sendMessage(userInputRef.value.trim());
             }
         });
-        
-        this.userInput.addEventListener('input', () => {
-            this.userInput.style.height = 'auto';
-            let sh = this.userInput.scrollHeight;
+        userInputRef.addEventListener('input', () => {
+            userInputRef.style.height = 'auto';
+            let sh = userInputRef.scrollHeight;
             if (sh > 200) {
                 sh = 200;
             }
-            this.userInput.style.height = sh + 'px';
+            userInputRef.style.height = sh + 'px';
+        });
+        userInputRef.addEventListener('focus', (e) => {
+            const inputGroup = e.target.closest('.ai-chatbot-input-group');
+            inputGroup?.setAttribute('data-focused', 'true');
+        });
+        userInputRef.addEventListener('blur', (e) => {
+            const inputGroup = e.target.closest('.ai-chatbot-input-group');
+            inputGroup?.setAttribute('data-focused', 'false');
         });
 
-        this.sendButton.addEventListener('click', () => this.sendMessage(this.userInput.value.trim()));
-        this.abortButton.addEventListener('click', () => this.abortChat());
+        this._refs['action-send'].addEventListener('click', () => this.sendMessage(userInputRef.value.trim()));
+        this._refs['action-abort'].addEventListener('click', () => this.abortChat());
+
+        if (this._refs['action-newsession']) {
+            this._refs['action-newsession'].addEventListener('click', () => this.newSession());
+        }
+        if (this._refs['action-close']) {
+            this._refs['action-close'].addEventListener('click', (e) => {
+                if (typeof this.options.header?.onClose === 'function') {
+                    this.options.header.onClose(this, e);
+                }
+            });
+        }
+
+        // 允许用户手工滚动
+        const scrollArea = this._refs['chatbot-messages'];
+        scrollArea.addEventListener('scroll', () => {
+            const isAtBottom = (scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight) <= 10;
+            // 用户向上滚动了 -> 停止自动滚动
+            if (this._autoScrolling && !isAtBottom) {
+                this._autoScrolling = false;
+            } 
+            // 如果用户又回到了底部，可以重新开启自动滚动
+            else if (!this._autoScrolling && isAtBottom) {
+                this._autoScrolling = true;
+                this.scrollToBottom();
+            }
+        });
 
         // 事件委托
-        this.messageContainer.addEventListener('click', (e) => {
+        this._refs['chatbot-messages'].addEventListener('click', (e) => {
             const target = e.target;
-
             // 处理代码块复制按钮
             const copyButton = target.closest('.ai-chatbot-code-copy-button');
             if (copyButton) {
@@ -220,48 +310,125 @@ export class AIChatbot {
 
         });
 
-        if (this.actionNewSession) {
-            this.actionNewSession.addEventListener('click', () => this.newSession());
-        }
-        if (this.actionClose) {
-            this.actionClose.addEventListener('click', (e) => {
-                if (typeof this.options.header?.onClose === 'function') {
-                    this.options.header.onClose(this, e);
+        // 文件上传处理
+        if (this._refs['file-input']) {
+            const fileInput = this._refs['file-input'];
+            const previewGrid = this._refs['preview-grid'];
+
+            // 创建一个可监听变化的代理数组对象
+            this._files = watchArray([], (files, changes) => {
+                console.log(changes);
+                if (files.length === 0) {
+                    previewGrid.classList.add('ai-chatbot-hide');
+                    previewGrid.innerHTML = '';
+                    return;
+                }
+
+                const deleteItems = [];
+                const children = previewGrid.querySelectorAll('[data-fileId]');
+                children.forEach(c => {
+                    const found = files.filter(f => f.fileId === c.getAttribute('data-fileId'));
+                    if (found.length === 0) {
+                        deleteItems.push(c);
+                    }
+                });
+                deleteItems.forEach(item => previewGrid.removeChild(item));
+
+                files.forEach((f) => {
+                    if (!f._rendered_ && f.type.startsWith('image/')) {
+                        f._rendered_ = true;
+                        let ele = document.createElement('div');
+                        ele.className = 'ai-chatbot-file-preview-item';
+                        ele.setAttribute('data-fileId', f.fileId);
+                        ele.innerHTML = `
+                            <img src="${f.url}" title="${f.name}">
+                            <button class="ai-chatbot-button ai-chatbot-round ai-chatbot-action-rmfile" data-variant="minimal">
+                                <span class="ai-chatbot-icon">${closeIcon}</span>
+                            </button>
+                        `;
+                        previewGrid.classList.remove('ai-chatbot-hide');
+                        previewGrid.appendChild(ele);
+                    }
+                });
+            });
+
+            previewGrid.addEventListener('click', (e) => {
+                const rmBtn = e.target.closest('button.ai-chatbot-action-rmfile');
+                if (rmBtn) {
+                    const item = rmBtn.closest('.ai-chatbot-file-preview-item');
+                    const fileId = item.getAttribute('data-fileId');
+                    const deleteIndex = this._files.findIndex(f => f.fileId === fileId);
+                    if (deleteIndex > -1) {
+                        this._files.splice(deleteIndex, 1);
+                    }
+                    return;
+                }
+            });
+
+            const onUploadFile = (typeof this.options.file.onUpload === 'function') 
+                ? this.options.file.onUpload 
+                : (file) => {
+                    if (!file.type.startsWith('image/')) {
+                        return Promise.resolve(URL.createObjectURL(file));
+                    }
+                    // 默认实现将图片转换为base64
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (e.target?.result) {
+                                resolve(e.target.result.toString());
+                            }
+                        };
+                        reader.onerror = (e) => {
+                            reject(e);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }; 
+            
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) {
+                    return;
+                }
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    let fileItem = {
+                        'fileId': uuid(),
+                        'type': file.type,
+                        'name': file.name,
+                        'size': file.size,
+                        'url': ''
+                    };
+
+                    onUploadFile(file)
+                        .then(url => {
+                            fileItem.url = url;
+                            this._files.push(fileItem);
+                        }).catch(e => {
+                            console.error(e);
+                        });
                 }
             });
         }
-
-        // 允许用户手工滚动
-        const scrollArea = this.messageContainer;
-        scrollArea.addEventListener('scroll', () => {
-            const isAtBottom = (scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight) <= 10;
-            // 用户向上滚动了 -> 停止自动滚动
-            if (this._autoScrolling && !isAtBottom) {
-                this._autoScrolling = false;
-            } 
-            // 如果用户又回到了底部，可以重新开启自动滚动
-            else if (!this._autoScrolling && isAtBottom) {
-                this._autoScrolling = true;
-                this.scrollToBottom();
-            }
-        });
     }
 
     setupTools() {
         const tools = this.options.tools;
-        const onToolsClick = this.options.onToolsClick || function(){};
         if (!tools || tools.length === 0) {
             return;
         }
         
+        const onToolsClick = this.options.onToolsClick || function(){};
         tools.forEach(item => {
             let btn = document.createElement('button');
-            btn.innerHTML = (item.icon ? '<span class="ai-tool-icon">'+ item.icon +'</span>':'') 
-                + '<span class="ai-tool-text">'+ (item.label || 'Btn') +'</span>';
+            btn.className = 'ai-chatbot-button';
+            btn.innerHTML = (item.icon ? '<span class="ai-chatbot-icon">'+ item.icon +'</span>':'') 
+                            + '<span class="ai-chatbot-button-text">'+ (item.label || '') +'</span>';
             btn.addEventListener('click', (e) => {
                 onToolsClick(item, this, e);
             });
-            this.toolsContainer.appendChild(btn);
+            this._refs['suggestion-tools'].appendChild(btn);
         });
     }
 
@@ -273,7 +440,7 @@ export class AIChatbot {
             } else {
                 hostElement.appendChild(result);
             }
-            hostElement.style.minHeight = hostElement.offsetHeight + 'px';
+            hostElement.style.minHeight = hostElement.clientHeight + 'px';
             this.scrollToBottom();
         });
     }
@@ -281,7 +448,14 @@ export class AIChatbot {
     newSession() {
         this.abortChat();
         this.messages = [];
-        this.messageContainer.innerHTML = '';
+        this._refs['chatbot-messages'].innerHTML = '';
+        this.clearFiles();
+    }
+
+    clearFiles() {
+        if (this._files.length > 0) {
+            this._files.length = 0;
+        }
     }
 
     get loading() {
@@ -290,11 +464,11 @@ export class AIChatbot {
     set loading(isLoading) {
         this._loading = !!isLoading;
         if (this._loading) {
-            this.sendButton.classList.add('ai-chatbot-hide');
-            this.abortButton.classList.remove('ai-chatbot-hide');
+            this._refs['action-send'].classList.add('ai-chatbot-hide');
+            this._refs['action-abort'].classList.remove('ai-chatbot-hide');
         } else {
-            this.abortButton.classList.add('ai-chatbot-hide');
-            this.sendButton.classList.remove('ai-chatbot-hide');
+            this._refs['action-abort'].classList.add('ai-chatbot-hide');
+            this._refs['action-send'].classList.remove('ai-chatbot-hide');
         }
     }
     
@@ -320,9 +494,12 @@ export class AIChatbot {
                     </div>
                 </div>
             </div>`;
+
         } else {
             if (isUser) {
-                messageDiv.innerHTML = `<div class="ai-chatbot-message"><div class="ai-chatbot-message-content">${content}</div></div>`;
+                messageDiv.innerHTML = `<div class="ai-chatbot-message">
+                    <div class="ai-chatbot-message-content">${content}</div>
+                </div>`;
             } else {
                 messageDiv.innerHTML = `<div class="ai-chatbot-avatar">${botIcon}</div>
                 <div class="ai-chatbot-message">
@@ -335,11 +512,12 @@ export class AIChatbot {
                     </div>
                     <div class="ai-chatbot-message-content"></div>
                 </div>`;
+
                 this.renderMessage(content, messageDiv.querySelector('.ai-chatbot-message-content'));
             }
         }
         
-        this.messageContainer.appendChild(messageDiv);
+        this._refs['chatbot-messages'].appendChild(messageDiv);
         this.scrollToBottom();
     }
     
@@ -348,7 +526,7 @@ export class AIChatbot {
             return;
         }
         requestAnimationFrame(() => {
-          this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+            this._refs['chatbot-messages'].scrollTop = this._refs['chatbot-messages'].scrollHeight;
         });
     }
 
@@ -368,7 +546,7 @@ export class AIChatbot {
             throw new Error('`messages` should be an array');
         }
         this.messages = messages;
-        this.messageContainer.innerHTML = '';
+        this._refs['chatbot-messages'].innerHTML = '';
         this.messages.forEach(msg => {
             const isUser = msg.role === 'user';
             this.addMessage(msg.content, isUser, false);
@@ -407,8 +585,9 @@ export class AIChatbot {
         this.addMessage(userMsg, true, false);
         this.messages.push({ role: 'user', content: sendMsg || userMsg });
         
-        this.userInput.value = '';
-        this.userInput.style.height = 'auto';
+        this._refs['user-input'].value = '';
+        this._refs['user-input'].style.height = 'auto';
+        this.clearFiles();
         
         // 立刻显示AI请求中提示气泡
         this.addMessage('', false, true);
@@ -418,7 +597,7 @@ export class AIChatbot {
         let thinkingTipEle = null;
         let thinkingContentEle = null;
         let mainContentEle = null;
-        const lastMessageEle = this.messageContainer.lastElementChild;
+        const lastMessageEle = this._refs['chatbot-messages'].lastElementChild;
         if (lastMessageEle && lastMessageEle.classList.contains('ai-chatbot-message-item')) {
             thinkingEle = lastMessageEle.querySelector('.ai-chatbot-message-thinking');
             thinkingTipEle = lastMessageEle.querySelector('.ai-chatbot-message-thinking-tip');
@@ -601,7 +780,7 @@ class AIChatbotFloatingAssistant extends HTMLElement {
             height: 40px;
             border-radius: 50%;
             appearance: none;
-            background-color: var(--primary-brand-color);
+            background-color: var(--aichatbot-primary-brand-color);
             color: #fff;
             border: 0 none;
             cursor: pointer;
@@ -637,7 +816,7 @@ class AIChatbotFloatingAssistant extends HTMLElement {
     }
 }
 
-customElements.define('ai-chatbot-floating-assistant', AIChatbotFloatingAssistant);
+window.customElements.define('ai-chatbot-floating-assistant', AIChatbotFloatingAssistant);
 
 /**
  * 浮动助手
@@ -654,7 +833,7 @@ export const floatingAssistant = (options) => {
             right: "30px",
             bottom: "30px",
             zIndex: 1000,
-            '--primary-brand-color': '#5350c4'
+            '--aichatbot-primary-brand-color': '#1e96eb'
         }
     }, options || {});
 

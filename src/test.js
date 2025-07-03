@@ -5,13 +5,13 @@ let apiKey = 'sk-nirlhxqutudszbzdayffbgzlawabxbmhqjrumngwnzjsdsxg';
 let apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
 let modelName = 'deepseek-ai/DeepSeek-V3'; //deepseek-ai/DeepSeek-V3, deepseek-ai/DeepSeek-R1
 
-//apiUrl = 'http://localhost:11434/v1/chat/completions';
-//modelName = 'deepseek-r1:7b';
+apiUrl = 'http://localhost:11434/v1/chat/completions';
+modelName = 'qwen2.5-coder:7b';
 
 
 const chatbot = new AIChatbot({
   container: document.querySelector('#app'),
-  //header: false,
+  header: false,
   openai: {
     url: apiUrl,
     apiKey: apiKey,
@@ -25,7 +25,7 @@ const chatbot = new AIChatbot({
     console.log('>>> 点击了工具：', item);
     if (item.label === '总结网页') {
       chatbot.sendMessage('总结当前网页', `
-      概括总结以下文章的核心主题，字数不能多于原文字数：
+      Write a concise summary of the following:
       -----
       美国总统特朗普21日刚宣布成功空袭伊朗核设施后，就迫不及待地在公开演讲中向全球宣称“彻底摧毁了伊朗核设施”，并要求伊朗赶紧投降“签署和平协议”。但有意思的是，对于美军空袭是否当真摧毁了深藏地下100米的伊朗福尔多核设施，即便是最乐观的以色列官员也仅表示“现在想确切知道美国打击伊朗核设施的结果还为时过早”。
       即便有了卫星照片，仍然很难判断美军空袭是否彻底摧毁了福尔多核设施
@@ -40,12 +40,16 @@ const chatbot = new AIChatbot({
   }
 });
 
+chatbot.setMessages([
+  {role: 'assistant', content: '你好，我是AI助手。请问有什么可以帮助你的吗？\n # hello'}
+]);
+
 // 浮动
 floatingAssistant({
   style: {
     right: '5%',
     bottom: '10%',
-    '--primary-brand-color': '#00c4cc'
+    '--aichatbot-primary-brand-color': '#5350c4'
   },
   openai: {
     url: apiUrl,
