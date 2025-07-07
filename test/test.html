@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+    img {
+        max-width: 200px;
+        max-height: 200px;
+    }
+    </style>
+</head>
+<body>
+    <div style="display:flex; align-items: center; justify-content: center; height:300px; width:400px;margin:0 auto;background-color: aliceblue;border-radius: 10px;">
+        <h1>Hello, 你好, 截屏了</h1>
+        <img src="3.jpg">
+    </div>
+
+    <script src="./snapshot.js"></script>
+    <script>
+    const snapshot = window['@bytereplay/snapshot'];
+    let r = new snapshot.SnapshotCapturer();
+    r.registerNodeObserver(snapshot.CanvasElementObserver);
+
+    console.log(snapshot);
+
+    r.screenshot({
+        token: 'token1234567',
+        type: "png",
+        fullPage: false,
+        delayTime: 250,
+        environment: {
+            type: "PROD-PUBLIC"
+        },
+        safety: true
+    });
+
+    </script>
+</body>
+</html>

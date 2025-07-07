@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流式解析Markdown输出</title>
+    <style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        height: 100vh;
+    }
+    body {
+        font-size: 14px;
+        font-family: Menlo,Monaco,Consolas,monospace, 'Microsoft YaHei';
+    }
+
+    table {
+        border: 1px solid #ccc;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+    }
+    table td, table th {
+        border: 1px solid #ddd;
+        padding: 5px;
+    }
+    p {
+        margin: 0 0 12px 0;
+    }
+
+    code {
+        background-color: antiquewhite;
+        border-radius: 3px;
+        color: #cc0000;
+        padding: 0 4px;
+        font-size: 0.9em;
+    }
+    pre {
+        background-color: beige;
+        border-radius: 6px;
+        padding: 10px 20px;
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+        font-size: 1em;
+    }
+    
+    </style>
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+</head>
+
+<body style="display: flex; gap:10px; padding: 10px;">
+
+    <div id="preview" style="flex:1; height:80%; padding: 20px; background-color: aliceblue;overflow: auto;">
+
+    </div>
+
+    <div style="flex: 1;">
+        <textarea id="input" rows="10" style="width:80%;">
+ 大模型流式输出markdown内容的增量渲染是一个重要的问题, 目前开源的markdown解析器(remark, marked, markdown-it等)都不支持增量解析输出, 只能通过不断累积输出内容进行全量解析, 这个会存在性能问题. 
+
+我有一个想法不知道是否可行: 
+对大模型流式输出的内容按照: 普通段落, 列表项(有序列表,无序列表), 引用块, 表格, 代码块 进行识别, 当流式输出的内容满足一个完整块时, 则渲染这个块到页面中, 然后继续累积后面的流式输出内容进行识别和渲染.  为了做到"实时"渲染, 当在一个块内累积内容时, 可以通过不断的进行类似 `let activeElement=container.lastElement; container.removeChild(activeElement), container.appendChild(newActiveElement) ` 这样的"块内刷新"方式渲染, 这样就可以做到已经完成的块不再重新解析和渲染, 新的块采用"块内刷新". 
+对于块识别, 可以用状态机（State Machine）方式进行.
+
+基于上述的分析, 请使用 vanilla javascript 实现这个方案, 你可以通过 fetch 请求一个 ollama服务 `http://localhost:11434/v1/chat/completions` 来模拟流式输出, 然后实现函数 `function renderStreamingMarkdown(chunk,  containerElement)`.
+
+要求: 
+1. 要认真完整的考虑"块"的识别算法, 能正确无误识别出 `标题(H1~H6)`, `普通段落`, `有序列表|无序列表`, `引用块(引用块中还能嵌入其它块)`, `代码块`, `表格`.
+2. 实现的代码要进行测试, 满足上线生产环境运行的要求.
+        </textarea>
+        <div>
+            <button id="send">发送</button>
+        </div>
+    </div>
+
+    <script type="module">
+    import * as smd from "./smd.js"
+
+    function throttle(func, delay) {
+        let timer = null;
+        let lastTime = 0;
+
+        return function (...args) {
+            const now = Date.now();
+            const remaining = delay - (now - lastTime);
+            clearTimeout(timer);
+            if (remaining <= 0) {
+            lastTime = now;
+            func.apply(this, args);
+            } else {
+            timer = setTimeout(() => {
+                lastTime = Date.now();
+                func.apply(this, args);
+            }, remaining);
+            }
+        };
+    }
+
+    async function sendMsg() {
+        let _abortController = new AbortController();
+        const abortSignal = _abortController.signal;
+
+        let apiUrl = 'http://127.0.0.1:11434/v1/chat/completions';
+        let apiKey = '123';
+
+        const requestBody = {
+            model: 'qwen2.5:latest',
+            messages: [{ role:'user', content: document.getElementById('input').value || 'Hi' }],
+            stream: true
+        };
+
+        const container = document.getElementById("preview");
+        container.innerHTML = '';
+        const renderer = smd.default_renderer(container);
+        const parser = smd.parser(renderer);
+
+        let buffer = '';
+        let delayRender = throttle(() => {
+            smd.parser_write(parser, buffer);
+            buffer = '';
+            container.scrollTop = container.scrollHeight;
+        }, 230);
+
+        let renderMarkdown = function(chunk) {
+            buffer += chunk;
+            delayRender(buffer);
+        };
+
+        let renderEnd = function() {
+            if (buffer.length > 0) {
+                smd.parser_write(parser, buffer);
+                buffer = '';
+            }
+
+            smd.parser_end(parser);
+            console.log(mainText);
+        };
+
+        let hasReasoning = false;
+        let inThinking = false;
+        let thinkingEnd = false;
+        let thinkingText = '';
+        let thinkingStime = Date.now();
+        let mainText = '';
+
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify(requestBody),
+                signal: abortSignal
+            });
+
+            if (!response.ok) {
+                console.error('Error from OpenAI API:', response);
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+           
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    renderEnd();
+                    break;
+                }
+                buffer += decoder.decode(value, { stream: true });
+
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop(); // Keep incomplete line
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.substring(6);
+                        if (data.trim() === '[DONE]') {
+                            renderEnd();
+                            return;
+                        }
+
+                        try {
+                            const json = JSON.parse(data);
+                            const delta = json.choices[0].delta;
+
+                            let reasoningContent = delta?.reasoning_content  || delta?.reasoning;
+                            let content = delta?.content || '';
+
+                            if (!hasReasoning && reasoningContent !== undefined) {
+                                hasReasoning = true;
+                            }
+                            if (!hasReasoning && !content) {
+                                continue;
+                            }
+                            // 碰到思考输出
+                            // 处理 <think> 标签
+                            if (hasReasoning || content.includes('<think>')) {
+                                inThinking = true;
+                                content = (reasoningContent || content).replace('<think>', '');
+                            }
+                            if (content.includes('</think>')) {
+                                content = content.replace('</think>', '');
+                                inThinking = false;
+                                thinkingEnd = true;
+                            }
+                            if (hasReasoning && inThinking && delta?.content) {
+                                inThinking = false;
+                                thinkingEnd = true;
+                            }
+
+                            // 如果在思考块内
+                            if (inThinking) {
+                                if (content.length === 0) {
+                                    continue;
+                                }
+                                // <think>后的第一个换行符忽略
+                                if (content === '\n' && thinkingText.length === 0) {
+                                    continue;
+                                }
+                                thinkingText += content;
+                                renderMarkdown(content);
+                                continue;
+                            }
+                            
+                            if (!inThinking) {
+                                // 更新前面最后一次的think
+                                if (thinkingText.length > 0) {
+                                    //renderThinking(thinkingText, thinkingEnd, ((Date.now() - thinkingStime)/1000).toFixed(1));
+                                    thinkingText = '';
+                                }
+                                // 累加主内容
+                                mainText += content;
+                                renderMarkdown(content);
+                            }
+
+                        } catch (error) {
+                            console.error('响应内容不是json格式', error);
+                        }
+                    }
+                }
+            }
+
+        } catch (error) {
+            if (!(error.message.includes('abort'))) {
+                console.error('Error:', error);
+            }
+        }
+    }
+
+    document.getElementById('send').addEventListener('click', sendMsg);
+
+    </script>
+    
+</body>
+</html>
