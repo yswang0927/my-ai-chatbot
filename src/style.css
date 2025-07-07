@@ -142,7 +142,7 @@
     padding: 0;
 }
 .ai-chatbot-btn-group:hover {
-    background-color: transparent !important;
+    background-color: transparent;
 }
 .ai-chatbot-btn-group .ai-chatbot-btn {
     background-color: transparent;
