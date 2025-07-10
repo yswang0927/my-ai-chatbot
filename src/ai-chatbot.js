@@ -25,6 +25,7 @@ import abortIcon from './assets/abort.svg?raw';
 import arrowRight from './assets/arrow-right.svg?raw';
 import closeIcon from './assets/close.svg?raw';
 import attachIcon from './assets/attach.svg?raw';
+import imgIcon from './assets/image.svg?raw';
 import micIcon from './assets/mic.svg?raw';
 import webSearchIcon from './assets/websearch.svg?raw';
 import settingsIcon from './assets/settings.svg?raw';
@@ -32,6 +33,8 @@ import hammerIcon from './assets/hammer.svg?raw';
 import modelIcon from './assets/llm-model.svg?raw';
 import newChatIcon from './assets/newchat.svg?raw';
 import searchIcon from './assets/search.svg?raw';
+import mentionIcon from './assets/mention.svg?raw';
+import deepthinkIcon from './assets/deepthink.svg?raw';
 import clearIcon from './assets/clear.svg?raw';
 
 
@@ -135,9 +138,12 @@ export class AIChatbot {
                     <div class="ai-chatbot-input-actions">
                         <div class="ai-chatbot-panel-l">
                             <button data-ref="action-newchat" class="ai-chatbot-btn" data-variant="outline" title="新对话"><span class="ai-chatbot-icon">${newChatIcon}</span></button>
+                            <button class="ai-chatbot-btn"><span class="ai-chatbot-icon">${imgIcon}</span></button>
                             ${ fileEnabled ? '<label class="ai-chatbot-btn ai-chatbot-action-selectfile" data-variant="outline" title="添加图片或文件"><span class="ai-chatbot-icon">'+ attachIcon +'</span><input data-ref="file-input" type="file" style="display:none;" multiple accept="application/json,application/javascript,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet,application/vnd.ms-excel.sheet.binary.macroEnabled.12,application/vnd.apple.numbers,text/markdown,application/x-yaml,application/xml,application/typescript,text/typescript,text/x-typescript,application/x-typescript,application/x-sh,text/*,application/pdf,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/html,text/css,application/xhtml+xml,.js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.cs,.go,.rb,.php,.rs,.swift,.kt,.scala,.pl,.lua,.sh,.json,.yaml,.yml,.xml,.html,.htm,.css,.md,audio/mp3,audio/wav,audio/mp4,audio/mpeg,.mp3,.wav,.m4a"/></label>' : '' }
                             ${ webSearchEnabled ? '<button data-ref="action-websearch" class="ai-chatbot-btn" data-variant="outline" title="联网搜索"><span class="ai-chatbot-icon">'+ webSearchIcon +'</span></button>' : '' }
                             ${ mcpEnabled ? '<button data-ref="action-mcp" class="ai-chatbot-btn" data-variant="outline" title="MCP调用"><span class="ai-chatbot-icon">'+ hammerIcon +'</span></button>' : '' }
+                            <button data-ref="action-deepthink" class="ai-chatbot-btn"><span class="ai-chatbot-icon">${deepthinkIcon}</span><span class="ai-chatbot-btn-text">深度思考</span></button>
+                            <button class="ai-chatbot-btn"><span class="ai-chatbot-icon">${mentionIcon}</span></button>
                             <div class="ai-chatbot-models-panel">
                                 <div class="ai-chatbot-btn ai-chatbot-btn-group ai-chatbot-select-models" data-variant="outline">
                                     <button data-ref="action-select-models" class="ai-chatbot-btn">
@@ -178,6 +184,7 @@ export class AIChatbot {
         this._abortController = null;
         this._autoScrolling = true;
         this._files = [];
+        this._deepThinking = false;
         this._webSearchActivated = false;
         this._selectedModel = '';
         Object.defineProperty(this, 'selectedModel', {
@@ -200,6 +207,10 @@ export class AIChatbot {
                 if (typeof this.options.header?.onClose === 'function') {
                     this.options.header.onClose(this, e);
                 }
+            },
+            'action-deepthink': (e) => {
+                this._deepThinking = !this._deepThinking;
+                e.currentTarget.classList.toggle('ai-chatbot-activated');
             },
             'action-websearch': (e) => {
                 this._webSearchActivated = !this._webSearchActivated;
