@@ -5,8 +5,9 @@
     --aichatbot-text-disable-color: #a9a9ad;
     --aichatbot-text-emphasis-color: var(--aichatbot-primary-brand-color);
     --aichatbot-icon-activated: var(--aichatbot-primary-brand-color);
-    --aichatbot-icon-primary: #404854;
+    --aichatbot-icon-primary: #59636e;
     --aichatbot-icon-disable: #b3b3b3;
+    --aichatbot-icon-activated: var(--aichatbot-primary-brand-color);
     --aichatbot-btn-default-bgcolor: #f6f7f9;
 }
 
@@ -99,11 +100,11 @@
 .ai-chatbot-btn:not([data-intent]):hover {
     background-clip: padding-box;
     background-color: rgba(0,0,0,0.06);
-    box-shadow: inset 0 0 0 1px rgba(17, 20, 24, .2), 0 1px 2px rgba(17, 20, 24, .2);
+    /*box-shadow: inset 0 0 0 1px rgba(17, 20, 24, .2), 0 1px 2px rgba(17, 20, 24, .2);*/
 }
 .ai-chatbot-btn:not([data-intent]):active {
     background-color: #dce0e5;
-    box-shadow: inset 0 0 0 1px rgba(17, 20, 24, .2), 0 1px 2px rgba(17, 20, 24, .2);
+    /*box-shadow: inset 0 0 0 1px rgba(17, 20, 24, .2), 0 1px 2px rgba(17, 20, 24, .2);*/
 }
 .ai-chatbot-btn[data-variant='outline'] {
     background-color: transparent;
@@ -127,11 +128,12 @@
     cursor: not-allowed;
 }
 .ai-chatbot-btn:not([disabled]).ai-chatbot-activated {
-    background-color: var(--aichatbot-text-emphasis-color);
-    color: #fff;
+    background-color: #1e96eb14;
+    color: var(--aichatbot-icon-activated);
+    box-shadow: inset 0 0 0 1px rgba(30, 150, 235, .8), 0 1px 2px rgba(30, 150, 235, .1);
 }
 .ai-chatbot-btn:not([disabled]).ai-chatbot-activated .ai-chatbot-icon {
-    color: inherit;
+    color: var(--aichatbot-icon-activated);
 }
 
 .ai-chatbot-btn-group {
@@ -491,6 +493,10 @@
 .ai-chatbot-input-actions .ai-chatbot-btn {
     min-width: 26px;
     min-height: 26px;
+}
+
+.ai-chatbot-abort-icon {
+    color: var(--aichatbot-primary-brand-color);
 }
 
 .ai-chatbot-file-preview-grid {
